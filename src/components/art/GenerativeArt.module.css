@@ -1,0 +1,13 @@
+.art {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1;
+}
+
+.art circle,
+.art rect,
+.art path {
+  transition:
+    fill var(--dur-slow) var(--ease-out),
+    stroke var(--dur-slow) var(--ease-out);
+}

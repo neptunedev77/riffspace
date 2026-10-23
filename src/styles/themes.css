@@ -1,0 +1,119 @@
+/*
+ * Temas. Cada tema redefine o mesmo conjunto de tokens de cor no atributo
+ * data-theme de <html>. Regras de contraste:
+ *  --text / --text-muted / --text-faint ≥ 4.5:1 sobre --bg
+ *  --accent-text ≥ 4.5:1 sobre --bg (para texto em cor de destaque)
+ *  --accent-contrast ≥ 4.5:1 sobre --accent (texto de botões primários)
+ */
+
+:root,
+[data-theme='obsidian'] {
+  --bg: #09090b;
+  --bg-raised: #111114;
+  --surface-1: rgb(255 255 255 / 0.035);
+  --surface-2: rgb(255 255 255 / 0.06);
+  --surface-3: rgb(255 255 255 / 0.1);
+  --surface-solid: #141418;
+  --border: rgb(255 255 255 / 0.08);
+  --border-strong: rgb(255 255 255 / 0.18);
+  --highlight: rgb(255 255 255 / 0.07);
+
+  --text: #f2efeb;
+  --text-muted: #b5afa9;
+  --text-faint: #8d8781;
+
+  --accent: #d4213a;
+  --accent-hover: #e8304a;
+  --accent-bright: #ff3d56;
+  --accent-text: #ff6276;
+  --accent-soft: rgb(224 38 63 / 0.14);
+  --accent-contrast: #ffffff;
+  --focus: #ff7487;
+
+  --glow-1: rgb(224 38 63 / 0.34);
+  --glow-2: rgb(130 130 150 / 0.16);
+  --art-bg-1: #22090f;
+  --art-bg-2: #060607;
+  --art-ink: #f2efeb;
+  --art-2: #77737f;
+  --particle-rgb: 255 86 70;
+  --particle-direction: -1;
+
+  --shadow-md: 0 12px 30px -12px rgb(0 0 0 / 0.6);
+  --shadow-lg: 0 40px 80px -30px rgb(0 0 0 / 0.8);
+  --theme-color: #09090b;
+}
+
+[data-theme='blood-moon'] {
+  --bg: #0e0505;
+  --bg-raised: #170908;
+  --surface-1: rgb(255 210 190 / 0.035);
+  --surface-2: rgb(255 210 190 / 0.065);
+  --surface-3: rgb(255 210 190 / 0.11);
+  --surface-solid: #1b0c0a;
+  --border: rgb(255 180 150 / 0.1);
+  --border-strong: rgb(255 180 150 / 0.22);
+  --highlight: rgb(255 200 170 / 0.08);
+
+  --text: #f7ece6;
+  --text-muted: #c7aca2;
+  --text-faint: #9d8277;
+
+  --accent: #c2321a;
+  --accent-hover: #d63e24;
+  --accent-bright: #ff5a2e;
+  --accent-text: #ff8360;
+  --accent-soft: rgb(255 90 46 / 0.15);
+  --accent-contrast: #ffffff;
+  --focus: #ffa07f;
+
+  --glow-1: rgb(255 70 30 / 0.4);
+  --glow-2: rgb(255 150 40 / 0.2);
+  --art-bg-1: #3a0b05;
+  --art-bg-2: #0a0303;
+  --art-ink: #ffd9b8;
+  --art-2: #ffab4a;
+  --particle-rgb: 255 140 60;
+  --particle-direction: -1;
+
+  --shadow-md: 0 12px 30px -12px rgb(20 0 0 / 0.7);
+  --shadow-lg: 0 40px 80px -30px rgb(20 0 0 / 0.85);
+  --theme-color: #0e0505;
+}
+
+[data-theme='frozen-abyss'] {
+  --bg: #04070c;
+  --bg-raised: #0a1019;
+  --surface-1: rgb(190 225 255 / 0.035);
+  --surface-2: rgb(190 225 255 / 0.065);
+  --surface-3: rgb(190 225 255 / 0.11);
+  --surface-solid: #0c131d;
+  --border: rgb(170 215 255 / 0.1);
+  --border-strong: rgb(170 215 255 / 0.22);
+  --highlight: rgb(200 235 255 / 0.08);
+
+  --text: #e9f2fa;
+  --text-muted: #a3b6c8;
+  --text-faint: #7d91a5;
+
+  --accent: #63d2ff;
+  --accent-hover: #86ddff;
+  --accent-bright: #8fe3ff;
+  --accent-text: #7fdcff;
+  --accent-soft: rgb(99 210 255 / 0.13);
+  --accent-contrast: #031420;
+  --focus: #9be6ff;
+
+  --glow-1: rgb(80 190 255 / 0.3);
+  --glow-2: rgb(120 110 255 / 0.18);
+  --art-bg-1: #08223a;
+  --art-bg-2: #020409;
+  --art-ink: #e2f4ff;
+  --art-2: #8a8cff;
+  --particle-rgb: 210 238 255;
+  --particle-direction: 1;
+
+  --shadow-md: 0 12px 30px -12px rgb(0 5 15 / 0.7);
+  --shadow-lg: 0 40px 80px -30px rgb(0 5 15 / 0.85);
+  --theme-color: #04070c;
+}

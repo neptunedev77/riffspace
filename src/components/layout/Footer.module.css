@@ -1,0 +1,23 @@
+.footer {
+  margin-top: var(--space-9);
+  border-top: 1px solid var(--border);
+}
+
+.inner {
+  display: grid;
+  gap: var(--space-3);
+  padding-block: var(--space-6) var(--space-7);
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: var(--text-muted);
+}
+
+.note {
+  max-width: 72ch;
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+}

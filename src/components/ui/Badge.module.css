@@ -1,0 +1,48 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.3em 0.65em;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.icon {
+  display: inline-flex;
+}
+
+.icon svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.neutral {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.accent {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.demo {
+  border-color: var(--accent-bright);
+  border-style: dashed;
+  background: rgb(0 0 0 / 0.35);
+  color: var(--accent-text);
+}
+
+.planned {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-faint);
+}
