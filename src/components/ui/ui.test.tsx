@@ -57,7 +57,7 @@ describe('Input', () => {
     const input = screen.getByLabelText('Nickname')
     expect(input).toHaveAttribute('aria-invalid', 'true')
     expect(input).toHaveAccessibleDescription('Até 24 caracteres Obrigatório')
-    expect(screen.getByRole('alert')).toHaveTextContent('Obrigatório')
+    expect(screen.getByText('Obrigatório')).toHaveAttribute('id', input.getAttribute('aria-describedby')?.split(' ')[1])
   })
 
   it('mostra o contador quando há maxLength', () => {

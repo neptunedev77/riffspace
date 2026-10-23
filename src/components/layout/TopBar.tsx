@@ -1,7 +1,6 @@
 import { Pencil } from 'lucide-react'
 import type { ThemeId } from '../../domain/theme.ts'
 import { cx } from '../../lib/cx.ts'
-import { Badge } from '../ui/Badge.tsx'
 import { Button } from '../ui/Button.tsx'
 import { ThemeSwitcher } from '../ui/ThemeSwitcher.tsx'
 import styles from './TopBar.module.css'
@@ -15,9 +14,10 @@ const SECTIONS = [
 interface TopBarProps {
   theme: ThemeId
   onThemeChange: (theme: ThemeId) => void
+  onEdit: () => void
 }
 
-export function TopBar({ theme, onThemeChange }: TopBarProps) {
+export function TopBar({ theme, onThemeChange, onEdit }: TopBarProps) {
   return (
     <header className={styles.bar}>
       <div className={cx('container', styles.inner)}>
@@ -42,16 +42,12 @@ export function TopBar({ theme, onThemeChange }: TopBarProps) {
           <ThemeSwitcher value={theme} onChange={onThemeChange} />
           <Button
             size="sm"
-            variant="secondary"
+            variant="primary"
             icon={<Pencil />}
-            disabled
-            aria-label="Editar perfil (em breve)"
+            aria-label="Editar perfil"
+            aria-haspopup="dialog"
             className={styles.editButton}
-            trailing={
-              <Badge tone="planned" className={styles.soon}>
-                Em breve
-              </Badge>
-            }
+            onClick={onEdit}
           >
             <span className={styles.editLabel}>Editar perfil</span>
           </Button>

@@ -1,4 +1,5 @@
 import { DEMO_ALBUMS, DEMO_BANDS } from '../data/demo-bands.ts'
+import { createBlankProfile } from '../data/blank-profile.ts'
 import { createDemoProfile } from '../data/demo-profile.ts'
 import { createProfileRepository } from '../lib/persistence/repository.ts'
 import { createMemoryStorage, getBrowserStorage, type KeyValueStorage } from '../lib/persistence/storage.ts'
@@ -21,6 +22,7 @@ export function createAppStore(storage?: KeyValueStorage) {
     repository,
     catalog: DEMO_CATALOG,
     createDemoProfile,
+    createBlankProfile,
     persistent,
     initialNotice: persistent ? undefined : { kind: 'storage-unavailable' },
   })

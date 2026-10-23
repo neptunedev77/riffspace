@@ -42,7 +42,7 @@ export function Input({ label, hint, error, maxLength, value, className, ...rest
         </p>
       )}
       {error && (
-        <p id={errorId} className={styles.error} role="alert">
+        <p id={errorId} className={styles.error}>
           {error}
         </p>
       )}

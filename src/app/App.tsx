@@ -9,13 +9,15 @@ import { StorageNotice } from '../components/layout/StorageNotice.tsx'
 import { TopBar } from '../components/layout/TopBar.tsx'
 import { ProfileHero } from '../components/profile/ProfileHero.tsx'
 import { RigSection } from '../components/rig/RigSection.tsx'
+import { ProfileEditor } from '../features/profile-editor/ProfileEditor.tsx'
 
 /**
- * Página do perfil. O estado vem da store (persistida em localStorage);
- * a edição do perfil chega na Etapa 3.
+ * Página do perfil. O estado vem da store (persistida em localStorage).
+ * Com o editor aberto, a página mostra o rascunho como pré-visualização.
  */
 export function App() {
-  const profile = useProfileStore((state) => state.profile)
+  const profile = useProfileStore((state) => state.draft ?? state.profile)
+  const startEditing = useProfileStore((state) => state.startEditing)
   const setTheme = useProfileStore((state) => state.setTheme)
   useApplyTheme(profile.theme)
 
@@ -27,7 +29,7 @@ export function App() {
       <a className="skip-link" href="#conteudo">
         Saltar para o conteúdo
       </a>
-      <TopBar theme={profile.theme} onThemeChange={setTheme} />
+      <TopBar theme={profile.theme} onThemeChange={setTheme} onEdit={() => startEditing()} />
       <main id="conteudo" tabIndex={-1}>
         <StorageNotice />
         <ProfileHero
@@ -42,6 +44,7 @@ export function App() {
         </div>
       </main>
       <Footer />
+      <ProfileEditor />
     </>
   )
 }

@@ -3,10 +3,10 @@ import type { Profile } from '../../domain/profile.ts'
 import type { ThemeId } from '../../domain/theme.ts'
 import { cx } from '../../lib/cx.ts'
 import { AmbientCanvas } from '../art/AmbientCanvas.tsx'
-import { GenerativeArt } from '../art/GenerativeArt.tsx'
 import { Badge } from '../ui/Badge.tsx'
 import { Chip } from '../ui/Chip.tsx'
 import { Surface } from '../ui/Surface.tsx'
+import { Avatar } from './Avatar.tsx'
 import styles from './ProfileHero.module.css'
 
 interface ProfileHeroProps {
@@ -16,7 +16,7 @@ interface ProfileHeroProps {
 }
 
 export function ProfileHero({ profile, theme, counts }: ProfileHeroProps) {
-  const name = profile.displayName ?? profile.nickname
+  const name = profile.displayName || profile.nickname || 'Sem nome'
 
   return (
     <section className={styles.hero} aria-labelledby="profile-name" id="top">
@@ -29,7 +29,7 @@ export function ProfileHero({ profile, theme, counts }: ProfileHeroProps) {
       <div className={cx('container', styles.content)}>
         <div className={styles.identity}>
           <div className={styles.avatar}>
-            <GenerativeArt variant="sigil" seed={profile.nickname} label={`Sigilo gerado para ${name}`} />
+            <Avatar avatar={profile.avatar} seed={profile.nickname} label={`Avatar de ${name}`} />
           </div>
           <div className={styles.nameBlock}>
             {profile.isDemo && (
@@ -41,7 +41,7 @@ export function ProfileHero({ profile, theme, counts }: ProfileHeroProps) {
               {name}
             </h1>
             <p className={styles.handle}>
-              @{profile.nickname}
+              {profile.nickname && `@${profile.nickname}`}
               {profile.location && (
                 <span className={styles.location}>
                   <MapPin aria-hidden="true" />
@@ -54,19 +54,21 @@ export function ProfileHero({ profile, theme, counts }: ProfileHeroProps) {
 
         <div className={styles.details}>
           <div className={styles.lead}>
-            <p className={styles.tagline}>{profile.tagline}</p>
-            <ul className={styles.subgenres} aria-label="Subgéneros favoritos">
-              {profile.subgenres.map((genre) => (
-                <li key={genre}>
-                  <Chip>{genre}</Chip>
-                </li>
-              ))}
-            </ul>
+            {profile.tagline && <p className={styles.tagline}>{profile.tagline}</p>}
+            {profile.subgenres.length > 0 && (
+              <ul className={styles.subgenres} aria-label="Subgéneros favoritos">
+                {profile.subgenres.map((genre) => (
+                  <li key={genre}>
+                    <Chip>{genre}</Chip>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <Surface level={2} className={styles.bioPanel}>
             <h2 className="visually-hidden">Sobre {name}</h2>
-            <p className={styles.bio}>{profile.bio}</p>
+            <p className={styles.bio}>{profile.bio || 'Ainda sem bio.'}</p>
             <dl className={styles.stats}>
               <div>
                 <dt>Bandas</dt>

@@ -18,9 +18,11 @@ describe('App — perfil de demonstração', () => {
     expect(names).toEqual(['Gojira', 'Opeth', 'Moonspell', 'At the Gates', 'Mastodon', 'Meshuggah'])
   })
 
-  it('o botão de edição está identificado como indisponível', () => {
+  it('o botão de edição está ativo e abre um diálogo', () => {
     renderApp()
-    expect(screen.getByRole('button', { name: 'Editar perfil (em breve)' })).toBeDisabled()
+    const button = screen.getByRole('button', { name: 'Editar perfil' })
+    expect(button).toBeEnabled()
+    expect(button).toHaveAttribute('aria-haspopup', 'dialog')
   })
 })
 

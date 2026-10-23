@@ -106,3 +106,84 @@ describe('profileStore', () => {
     expect(store.getState().saveStatus).toEqual({ state: 'error', error: 'quota' })
   })
 })
+
+describe('profileStore — rascunho do editor', () => {
+  it('startEditing cria uma cópia independente do perfil', () => {
+    const store = createAppStore(createMemoryStorage())
+    store.getState().startEditing()
+    const { draft, profile, draftDirty } = store.getState()
+    expect(draft).toEqual(profile)
+    expect(draft).not.toBe(profile)
+    expect(draftDirty).toBe(false)
+  })
+
+  it('updateDraft não toca no perfil nem no storage', () => {
+    const storage = createMemoryStorage()
+    const store = createAppStore(storage)
+    store.getState().startEditing()
+    store.getState().updateDraft((d) => ({ ...d, nickname: 'x' }))
+    expect(store.getState().draft?.nickname).toBe('x')
+    expect(store.getState().draftDirty).toBe(true)
+    expect(store.getState().profile.nickname).toBe('nocturne')
+    expect(storage.snapshot()).toEqual({})
+  })
+
+  it('saveDraft inválido mantém o rascunho aberto e devolve os problemas', () => {
+    const store = createAppStore(createMemoryStorage())
+    store.getState().startEditing()
+    store.getState().updateDraft((d) => ({ ...d, nickname: 'x' }))
+    const result = store.getState().saveDraft()
+    expect(result.ok).toBe(false)
+    expect(store.getState().draft).not.toBeNull()
+    expect(store.getState().profile.nickname).toBe('nocturne')
+  })
+
+  it('saveDraft válido persiste, tira a etiqueta de demo e fecha o editor', () => {
+    const storage = createMemoryStorage()
+    const store = createAppStore(storage)
+    store.getState().startEditing()
+    store.getState().updateDraft((d) => ({ ...d, nickname: 'Lamina', tagline: 'Nova' }))
+    expect(store.getState().saveDraft()).toEqual({ ok: true })
+
+    const state = store.getState()
+    expect(state.draft).toBeNull()
+    expect(state.profile).toMatchObject({ nickname: 'lamina', tagline: 'Nova', isDemo: false })
+    expect(createAppStore(storage).getState().profile).toMatchObject({ nickname: 'lamina', isDemo: false })
+  })
+
+  it('discardDraft descarta sem gravar', () => {
+    const storage = createMemoryStorage()
+    const store = createAppStore(storage)
+    store.getState().startEditing()
+    store.getState().updateDraft((d) => ({ ...d, tagline: 'Descartada' }))
+    store.getState().discardDraft()
+    expect(store.getState().draft).toBeNull()
+    expect(store.getState().profile.tagline).not.toBe('Descartada')
+    expect(storage.snapshot()).toEqual({})
+  })
+
+  it('startEditing("blank") começa um perfil vazio, novo e não-demo', () => {
+    const store = createAppStore(createMemoryStorage())
+    store.getState().setTheme('frozen-abyss')
+    store.getState().startEditing('blank')
+    const draft = store.getState().draft!
+    expect(draft).toMatchObject({ nickname: '', favoriteBandIds: [], rig: [], isDemo: false, theme: 'frozen-abyss' })
+    expect(draft.id).not.toBe(store.getState().profile.id)
+    expect(store.getState().draftDirty).toBe(true)
+  })
+
+  it('setTheme com o editor aberto aplica-se ao perfil e ao rascunho', () => {
+    const store = createAppStore(createMemoryStorage())
+    store.getState().startEditing()
+    store.getState().setTheme('blood-moon')
+    expect(store.getState().draft?.theme).toBe('blood-moon')
+    expect(store.getState().profile.theme).toBe('blood-moon')
+  })
+
+  it('resetToDemo fecha o editor', () => {
+    const store = createAppStore(createMemoryStorage())
+    store.getState().startEditing()
+    store.getState().resetToDemo()
+    expect(store.getState().draft).toBeNull()
+  })
+})

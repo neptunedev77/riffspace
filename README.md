@@ -5,14 +5,21 @@ identity — favourite bands, albums and subgenres — and showcase your guitar 
 as a signal chain, on a page that feels like a personal piece of art rather than
 a dashboard.
 
-> **Status:** early development. The app renders a fully styled demo profile
-> with three working themes and persists the profile locally. Profile editing
-> is not available yet.
+> **Status:** early development. Musical identity editing and local persistence
+> work end to end; the rig builder, public view and JSON export are next.
 
 ## Features
 
 - **Demo profile** — a complete, clearly labelled demonstration profile with
   ranked bands, favourite albums and a guitar rig.
+- **Profile editor** — a drawer with live preview: the page behind it updates as
+  you type, and nothing is saved until you press _Save_. Edit nickname, display
+  name, tagline, bio, location and avatar (generated sigil or image URL with a
+  graceful fallback). Start from the demo or from a blank profile.
+- **Musical identity** — search the local catalogue by name (accent- and
+  case-insensitive) and filter by subgenre; rank favourite bands with
+  accessible move up/down controls; pick favourite albums and subgenres; add,
+  edit and delete custom bands and albums that are not in the catalogue.
 - **Three themes** — _Obsidian_, _Blood Moon_ and _Frozen Abyss_. Switching
   themes changes colours, surfaces, glows, generated artwork and the ambient
   particle effect.
@@ -88,8 +95,11 @@ src/
     profile/      Profile hero
     rig/          Signal chain and gear details
     ui/           Reusable primitives (Button, Chip, Badge, Surface, Input, …)
-  data/           Local demo catalogue, rig and profile
+  data/           Local demo catalogue, rig and profile; blank profile factory
   domain/         Types and pure domain logic (profile, band, album, gear, theme)
+  features/
+    band-selector/   Search, selection and custom-entry logic plus its editor tabs
+    profile-editor/  Editor drawer, identity tab and validation-to-tab mapping
   hooks/          Shared React hooks
   lib/
     art/          Deterministic generative artwork (seeded PRNG)
@@ -162,17 +172,25 @@ kept. Changes made in another tab are picked up automatically.
 - The bundled catalogue is a small demo sample and is not intended to be
   complete.
 
+### Editing model
+
+The editor works on a **draft** held in the store. Intermediate states (for
+example a half-typed nickname) are allowed in the draft and shown in the
+preview, but only `saveDraft` validates, normalises and persists. Saving an
+edited demo profile turns it into the user's own profile (`isDemo: false`).
+Closing the editor with unsaved changes asks for confirmation, and the browser
+warns before leaving the page.
+
 ## Current limitations
 
-- Profiles cannot be edited yet; the _Edit profile_ control is visibly marked
-  as coming soon.
+- Gear cannot be edited yet (rig builder is the next step).
+- Band reordering uses move up/down buttons; drag-and-drop is not implemented.
 - Data is stored only in the current browser. Nothing is published online;
   there is no backend and no public profile URL.
 - Only the most recent unreadable document is kept as a backup.
 
 ## Roadmap
 
-- Profile editor with band search, filtering and custom entries
 - Rig builder with add, edit, remove and reorder
 - Public view and validated JSON export/import
 - Visual polish, motion and an accessibility audit

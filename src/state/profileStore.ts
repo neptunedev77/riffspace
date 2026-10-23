@@ -13,8 +13,17 @@ export type SaveStatus =
 
 export type UpdateResult = { ok: true } | { ok: false; issues: ValidationIssue[] }
 
+export type EditMode = 'current' | 'blank'
+
 export interface ProfileState {
   profile: Profile
+  /**
+   * Rascunho do editor. Enquanto existe, a página mostra-o como pré-visualização;
+   * só `saveDraft` o valida e persiste. null quando o editor está fechado.
+   */
+  draft: Profile | null
+  /** true quando o rascunho tem alterações por guardar. */
+  draftDirty: boolean
   /** false quando não há localStorage utilizável: as alterações vivem só em memória. */
   persistent: boolean
   /** true quando o perfil atual veio do storage (e não do fallback demo). */
@@ -28,6 +37,13 @@ export interface ProfileState {
    */
   updateProfile: (updater: (profile: Profile) => Profile) => UpdateResult
   setTheme: (theme: ThemeId) => void
+  /** Abre o editor sobre o perfil atual ou sobre um perfil em branco. */
+  startEditing: (mode?: EditMode) => void
+  /** Altera o rascunho sem validar nem persistir (estados intermédios são permitidos). */
+  updateDraft: (updater: (draft: Profile) => Profile) => void
+  /** Valida o rascunho; se for válido guarda-o como perfil do utilizador e fecha o editor. */
+  saveDraft: () => UpdateResult
+  discardDraft: () => void
   /** Apaga os dados guardados e repõe o perfil de demonstração. */
   resetToDemo: () => void
   /** Relê o storage (p. ex. quando outro separador alterou os dados). */
@@ -39,6 +55,8 @@ export interface ProfileStoreOptions {
   repository: ProfileRepository
   catalog: Catalog
   createDemoProfile: () => Profile
+  /** Perfil vazio para "Começar do zero"; recebe o tema atual para o manter. */
+  createBlankProfile: (theme: ThemeId) => Profile
   persistent?: boolean
   now?: () => Date
   /** Aviso inicial extra (p. ex. storage indisponível detetado antes de criar a store). */
@@ -60,30 +78,61 @@ export function createProfileStore(options: ProfileStoreOptions) {
       })
     }
 
+    /** Valida, normaliza e persiste. Devolve os problemas se o candidato for inválido. */
+    const commit = (candidate: Profile): UpdateResult => {
+      const parsed = parseProfile({ ...candidate, updatedAt: now().toISOString() })
+      if (!parsed.ok) return { ok: false, issues: parsed.issues }
+      persist(normalizeProfile(parsed.value, options.catalog).profile)
+      return { ok: true }
+    }
+
     return {
       profile: initial.profile,
+      draft: null,
+      draftDirty: false,
       persistent,
       hasSavedData: initial.fromStorage,
       saveStatus: initial.savedAt ? { state: 'saved', at: initial.savedAt } : { state: 'idle' },
       notice: options.initialNotice ?? initial.notice ?? null,
 
-      updateProfile: (updater) => {
-        const candidate = { ...updater(get().profile), updatedAt: now().toISOString() }
-        const parsed = parseProfile(candidate)
-        if (!parsed.ok) return { ok: false, issues: parsed.issues }
-        persist(normalizeProfile(parsed.value, options.catalog).profile)
-        return { ok: true }
-      },
+      updateProfile: (updater) => commit(updater(get().profile)),
 
       setTheme: (theme) => {
-        if (get().profile.theme === theme) return
-        get().updateProfile((profile) => ({ ...profile, theme }))
+        const { profile, draft } = get()
+        // O tema é uma preferência imediata: aplica-se ao perfil e também ao rascunho aberto.
+        if (draft && draft.theme !== theme) set({ draft: { ...draft, theme } })
+        if (profile.theme !== theme) get().updateProfile((current) => ({ ...current, theme }))
       },
+
+      startEditing: (mode = 'current') => {
+        const { profile } = get()
+        const draft = mode === 'blank' ? options.createBlankProfile(profile.theme) : structuredClone(profile)
+        set({ draft, draftDirty: mode === 'blank' })
+      },
+
+      updateDraft: (updater) => {
+        const { draft } = get()
+        if (!draft) return
+        set({ draft: updater(draft), draftDirty: true })
+      },
+
+      saveDraft: () => {
+        const { draft } = get()
+        if (!draft) return { ok: true }
+        // Guardar o editor transforma o perfil no perfil do utilizador.
+        const result = commit({ ...draft, isDemo: false })
+        if (result.ok) set({ draft: null, draftDirty: false })
+        return result
+      },
+
+      discardDraft: () => set({ draft: null, draftDirty: false }),
 
       resetToDemo: () => {
         options.repository.clear()
         set({
           profile: options.createDemoProfile(),
+          draft: null,
+          draftDirty: false,
           hasSavedData: false,
           saveStatus: { state: 'idle' },
           notice: null,

@@ -55,16 +55,17 @@ export const DEMO_ALBUMS: Album[] = [
   { id: 'death-symbolic', bandId: 'death', title: 'Symbolic', year: 1995 },
 ]
 
-const COUNTRY_NAMES: Record<string, string> = {
-  FR: 'França',
-  SE: 'Suécia',
-  PT: 'Portugal',
-  US: 'EUA',
-  NO: 'Noruega',
-  GB: 'Reino Unido',
-  FI: 'Finlândia',
-}
+let regionNames: Intl.DisplayNames | null | undefined
 
+/** Nome do país em português a partir do código ISO, com fallback para o próprio código. */
 export function countryName(code: string | undefined): string | undefined {
-  return code ? (COUNTRY_NAMES[code] ?? code) : undefined
+  if (!code) return undefined
+  if (regionNames === undefined) {
+    try {
+      regionNames = new Intl.DisplayNames(['pt-PT'], { type: 'region' })
+    } catch {
+      regionNames = null
+    }
+  }
+  return regionNames?.of(code) ?? code
 }
