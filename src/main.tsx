@@ -5,6 +5,8 @@ import './styles/tokens.css'
 import './styles/themes.css'
 import './styles/base.css'
 import { App } from './app/App.tsx'
+import { createAppStore } from './state/createAppStore.ts'
+import { ProfileStoreProvider } from './state/ProfileStoreProvider.tsx'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) {
@@ -13,6 +15,8 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <App />
+    <ProfileStoreProvider store={createAppStore()}>
+      <App />
+    </ProfileStoreProvider>
   </StrictMode>,
 )

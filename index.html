@@ -7,6 +7,17 @@
     <meta name="theme-color" content="#09090b" />
     <title>RIFFSPACE</title>
     <meta name="description" content="Perfil visual interativo para metalheads e guitarristas." />
+    <script>
+      // Aplica o tema guardado antes da primeira pintura (evita um flash do tema por omissão).
+      // A validação completa do perfil acontece depois, na camada de persistência.
+      try {
+        var stored = JSON.parse(localStorage.getItem('riffspace:state') || 'null')
+        var theme = stored && stored.profile && stored.profile.theme
+        if (theme === 'obsidian' || theme === 'blood-moon' || theme === 'frozen-abyss') {
+          document.documentElement.dataset.theme = theme
+        }
+      } catch (error) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

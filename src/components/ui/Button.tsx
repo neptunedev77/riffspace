@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 import { cx } from '../../lib/cx.ts'
 import styles from './Button.module.css'
 
@@ -12,6 +12,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   icon?: ReactNode
   /** Conteúdo à direita (p. ex. um Badge "Em breve"). */
   trailing?: ReactNode
+  ref?: Ref<HTMLButtonElement>
 }
 
 export function Button({

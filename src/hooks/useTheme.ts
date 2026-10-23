@@ -1,5 +1,5 @@
-import { useLayoutEffect, useState } from 'react'
-import { DEFAULT_THEME, type ThemeId } from '../domain/theme.ts'
+import { useLayoutEffect } from 'react'
+import type { ThemeId } from '../domain/theme.ts'
 
 /** Aplica o tema a <html data-theme> e à meta theme-color do browser. */
 export function applyTheme(theme: ThemeId, root: HTMLElement = document.documentElement): void {
@@ -10,17 +10,12 @@ export function applyTheme(theme: ThemeId, root: HTMLElement = document.document
 }
 
 /**
- * Estado do tema ativo. Na Etapa 1 vive só em memória; a persistência
- * com o perfil chega na Etapa 2.
+ * Mantém <html data-theme> sincronizado com o tema do perfil.
+ * Layout effect: o tema fica aplicado antes da pintura e antes dos efeitos
+ * passivos dos filhos (o AmbientCanvas lê os tokens de cor).
  */
-export function useTheme(initial: ThemeId = DEFAULT_THEME) {
-  const [theme, setTheme] = useState<ThemeId>(initial)
-
-  // Layout effect: o tema fica aplicado antes dos efeitos passivos dos filhos
-  // (p. ex. AmbientCanvas lê os tokens de cor) e antes da pintura.
+export function useApplyTheme(theme: ThemeId): void {
   useLayoutEffect(() => {
     applyTheme(theme)
   }, [theme])
-
-  return [theme, setTheme] as const
 }

@@ -6,8 +6,17 @@ import type { ThemeId } from './theme.ts'
 export type AvatarSpec = { kind: 'generated' } | { kind: 'url'; url: string }
 
 /**
- * Perfil RIFFSPACE. Tipos mínimos para a Etapa 1; a validação, os limites de
- * texto e o schema versionado chegam na Etapa 2.
+ * Perfil RIFFSPACE (schema v1).
+ *
+ * Invariantes — garantidas por lib/validation ao ler e ao atualizar:
+ * - `id` e todos os IDs internos seguem ID_PATTERN; os IDs da rig são únicos.
+ * - Textos respeitam LIMITS e chegam sem espaços à volta.
+ * - `favoriteBandIds` não tem repetidos e só referencia bandas do catálogo ou
+ *   de `customBands`; o mesmo para `favoriteAlbumIds` com álbuns.
+ * - Cada álbum de `customAlbums` pertence a uma banda existente.
+ * - Bandas personalizadas têm `isCustom: true` e nunca reutilizam um ID do catálogo.
+ * - `subgenres` não tem repetidos (comparação sem distinção de maiúsculas).
+ * - `createdAt` / `updatedAt` são datas ISO 8601.
  */
 export interface Profile {
   id: string
@@ -21,6 +30,10 @@ export interface Profile {
   favoriteBandIds: string[]
   favoriteAlbumIds: string[]
   subgenres: string[]
+  /** Bandas adicionadas pelo utilizador que não existem no catálogo. */
+  customBands: Band[]
+  /** Álbuns adicionados pelo utilizador (de bandas do catálogo ou personalizadas). */
+  customAlbums: Album[]
   /** Ordem da rig = ordem de apresentação. */
   rig: GearItem[]
   theme: ThemeId
@@ -39,10 +52,19 @@ export function resolveByIds<T extends { id: string }>(ids: readonly string[], i
   })
 }
 
-export function favoriteBands(profile: Profile, catalog: readonly Band[]): Band[] {
-  return resolveByIds(profile.favoriteBandIds, catalog)
+/** Catálogo efetivo do perfil: catálogo local + entradas personalizadas. */
+export function allBands(profile: Profile, catalog: readonly Band[]): Band[] {
+  return [...catalog, ...profile.customBands]
 }
 
-export function favoriteAlbums(profile: Profile, albums: readonly Album[]): Album[] {
-  return resolveByIds(profile.favoriteAlbumIds, albums)
+export function allAlbums(profile: Profile, catalog: readonly Album[]): Album[] {
+  return [...catalog, ...profile.customAlbums]
+}
+
+export function favoriteBands(profile: Profile, catalog: readonly Band[]): Band[] {
+  return resolveByIds(profile.favoriteBandIds, allBands(profile, catalog))
+}
+
+export function favoriteAlbums(profile: Profile, catalog: readonly Album[]): Album[] {
+  return resolveByIds(profile.favoriteAlbumIds, allAlbums(profile, catalog))
 }

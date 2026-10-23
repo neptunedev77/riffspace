@@ -1,16 +1,16 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { App } from '../app/App.tsx'
+import { renderApp } from './renderApp.tsx'
 
 describe('App — perfil de demonstração', () => {
   it('apresenta o perfil e assinala-o como demonstração', () => {
-    render(<App />)
+    renderApp()
     expect(screen.getByRole('heading', { level: 1, name: 'Nocturne' })).toBeInTheDocument()
     expect(screen.getByText('Perfil de demonstração')).toBeInTheDocument()
   })
 
   it('mostra as bandas favoritas pela ordem do ranking', () => {
-    render(<App />)
+    renderApp()
     const section = screen.getByRole('region', { name: 'Bandas favoritas' })
     const names = within(section)
       .getAllByRole('heading', { level: 3 })
@@ -19,20 +19,20 @@ describe('App — perfil de demonstração', () => {
   })
 
   it('o botão de edição está identificado como indisponível', () => {
-    render(<App />)
+    renderApp()
     expect(screen.getByRole('button', { name: 'Editar perfil (em breve)' })).toBeDisabled()
   })
 })
 
 describe('App — temas', () => {
   it('aplica o tema inicial a <html>', () => {
-    render(<App />)
+    renderApp()
     expect(document.documentElement.dataset.theme).toBe('obsidian')
     expect(screen.getByRole('radio', { name: 'Obsidian' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('trocar de tema por clique altera data-theme', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('radio', { name: 'Frozen Abyss' }))
     expect(document.documentElement.dataset.theme).toBe('frozen-abyss')
     expect(screen.getByRole('radio', { name: 'Frozen Abyss' })).toHaveAttribute('aria-checked', 'true')
@@ -40,7 +40,7 @@ describe('App — temas', () => {
   })
 
   it('as setas do teclado percorrem os temas (roving tabindex)', () => {
-    render(<App />)
+    renderApp()
     const obsidian = screen.getByRole('radio', { name: 'Obsidian' })
     expect(obsidian).toHaveAttribute('tabindex', '0')
 
@@ -60,7 +60,7 @@ describe('App — temas', () => {
 
 describe('App — rig', () => {
   it('seleciona uma peça da cadeia e mostra os seus detalhes', () => {
-    render(<App />)
+    renderApp()
     const chain = screen.getByRole('list', { name: 'Cadeia de sinal' })
     const buttons = within(chain).getAllByRole('button')
     expect(buttons[0]).toHaveAttribute('aria-pressed', 'true')
@@ -77,7 +77,7 @@ describe('App — rig', () => {
   })
 
   it('equipamento fora da cadeia aparece em "Também na rig"', () => {
-    render(<App />)
+    renderApp()
     expect(screen.getByRole('heading', { name: 'Também na rig' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Focusrite Scarlett 2i2' })).toBeInTheDocument()
   })

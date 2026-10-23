@@ -1,6 +1,11 @@
 import type { Profile } from '../domain/profile.ts'
 import { DEMO_RIG } from './demo-gear.ts'
 
+/** Cópia profunda e independente do perfil demo (para reset sem partilhar referências). */
+export function createDemoProfile(): Profile {
+  return structuredClone(DEMO_PROFILE)
+}
+
 /**
  * Perfil de DEMONSTRAÇÃO, com uma persona fictícia. Não representa nenhum
  * utilizador real; a UI assinala-o sempre como demonstração.
@@ -23,6 +28,8 @@ export const DEMO_PROFILE: Profile = {
     'insomnium-winters-gate',
   ],
   subgenres: ['Melodic Death Metal', 'Progressive Metal', 'Gothic Metal', 'Djent'],
+  customBands: [],
+  customAlbums: [],
   rig: DEMO_RIG,
   theme: 'obsidian',
   isDemo: true,

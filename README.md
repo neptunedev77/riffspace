@@ -1,79 +1,179 @@
 # RIFFSPACE
 
-Perfil visual interativo para metalheads e guitarristas: identidade musical
-(bandas, álbuns, subgéneros) e a rig de guitarra numa página pessoal.
+An interactive visual profile for metalheads and guitarists. Build a musical
+identity — favourite bands, albums and subgenres — and showcase your guitar rig
+as a signal chain, on a page that feels like a personal piece of art rather than
+a dashboard.
 
-> **Estado:** Etapa 1 — design system e perfil de demonstração estático com
-> três temas funcionais. Ainda sem edição nem persistência.
-> Ver [docs/PLANO_TECNICO.md](docs/PLANO_TECNICO.md).
+> **Status:** early development. The app renders a fully styled demo profile
+> with three working themes and persists the profile locally. Profile editing
+> is not available yet.
 
-## Requisitos
+## Features
 
-- Node.js ≥ 22 (desenvolvido com Node 24.21.0)
-- npm (gestor de pacotes único do projeto; o lockfile é `package-lock.json`)
+- **Demo profile** — a complete, clearly labelled demonstration profile with
+  ranked bands, favourite albums and a guitar rig.
+- **Three themes** — _Obsidian_, _Blood Moon_ and _Frozen Abyss_. Switching
+  themes changes colours, surfaces, glows, generated artwork and the ambient
+  particle effect.
+- **Interactive signal chain** — guitar → pedals → amp → cabinet. Select any
+  piece of gear to inspect its details. The chain is a visual representation
+  only; it does not validate electrical or audio compatibility.
+- **Original generative artwork** — album covers, band art and the avatar
+  sigil are deterministic SVGs generated from a seed. No third-party logos,
+  photos or cover art are used.
+- **Local persistence** — the profile and its preferences are saved in the
+  browser with a versioned, validated schema. Corrupted or incompatible data
+  never blocks start-up: the original is backed up and the demo profile loads
+  instead, with a clear notice.
+- **Accessible by default** — semantic HTML, keyboard navigation, visible
+  focus, a skip link and `prefers-reduced-motion` support.
+- **Responsive** — designed for desktop and verified down to 320 px wide.
 
-Não são necessárias contas externas nem chaves API.
+## Tech stack
 
-## Instalação
+| Area          | Choice                                                    |
+| ------------- | --------------------------------------------------------- |
+| UI            | React 19, TypeScript 6 (strict), Vite 8                   |
+| Styling       | CSS custom properties (design tokens) and CSS Modules     |
+| Icons         | Lucide React                                              |
+| Fonts         | Self-hosted via Fontsource (Inter, Big Shoulders Display, JetBrains Mono — OFL-1.1) |
+| Effects       | CSS transitions and a lightweight Canvas 2D particle layer |
+| State         | Zustand (vanilla store, injected through React context)   |
+| Validation    | Zod                                                       |
+| Persistence   | `localStorage` with a versioned document envelope         |
+| Testing       | Vitest, Testing Library, jsdom                            |
+| Linting       | oxlint                                                    |
+
+No external accounts, API keys or network services are required.
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 22 or later
+- npm (the project's only package manager; `package-lock.json` is committed)
+
+### Install and run
 
 ```bash
 npm install
+npm run dev
 ```
+
+The dev server runs at <http://localhost:5173>.
 
 ## Scripts
 
-| Comando              | O que faz                                              |
-| -------------------- | ------------------------------------------------------ |
-| `npm run dev`        | Servidor de desenvolvimento Vite (http://localhost:5173) |
-| `npm run typecheck`  | Verificação TypeScript estrita (`tsc -b`)              |
-| `npm run lint`       | Lint com oxlint (avisos falham o comando)              |
-| `npm run test`       | Testes unitários com Vitest + Testing Library (jsdom)  |
-| `npm run test:watch` | Vitest em modo watch                                   |
-| `npm run build`      | Typecheck + build de produção para `dist/`             |
-| `npm run preview`    | Serve o build de produção localmente                   |
-| `npm run check`      | typecheck → lint → test → build, em sequência          |
+| Command              | Description                                          |
+| -------------------- | ---------------------------------------------------- |
+| `npm run dev`        | Start the Vite development server                    |
+| `npm run typecheck`  | Type-check the project with `tsc -b`                 |
+| `npm run lint`       | Lint with oxlint (warnings fail the run)             |
+| `npm run test`       | Run the test suite once                              |
+| `npm run test:watch` | Run tests in watch mode                              |
+| `npm run build`      | Type-check and create a production build in `dist/`  |
+| `npm run preview`    | Serve the production build locally                   |
+| `npm run check`      | Run typecheck, lint, tests and build in sequence     |
 
-## Estrutura (atual)
+## Project structure
 
 ```text
 src/
-  app/                App (composição da página)
+  app/            Application root and page composition
   components/
-    art/              GenerativeArt (capas/sigilos SVG) e AmbientCanvas (partículas)
-    bands/            bandas e álbuns favoritos
-    layout/           TopBar e Footer
-    profile/          hero do perfil
-    rig/              cadeia de sinal e detalhes do equipamento
-    ui/               Button, Chip, Badge, Surface, Input, SectionHeader, ThemeSwitcher
-  data/               catálogo, rig e perfil de DEMONSTRAÇÃO
-  domain/             tipos e funções puras (perfil, banda, álbum, gear, tema)
-  hooks/              useTheme, usePrefersReducedMotion
-  lib/                cx, arte generativa determinística (seed/PRNG)
-  styles/             fonts, tokens, themes, base
-  tests/              setup do Vitest e testes de integração
-docs/PLANO_TECNICO.md
+    art/          Generative SVG artwork and the ambient particle canvas
+    bands/        Favourite bands and albums
+    layout/       Top bar and footer
+    profile/      Profile hero
+    rig/          Signal chain and gear details
+    ui/           Reusable primitives (Button, Chip, Badge, Surface, Input, …)
+  data/           Local demo catalogue, rig and profile
+  domain/         Types and pure domain logic (profile, band, album, gear, theme)
+  hooks/          Shared React hooks
+  lib/
+    art/          Deterministic generative artwork (seeded PRNG)
+    persistence/  Storage adapter, versioned document, migrations, repository
+    validation/   Zod schemas, parsing and invariant normalisation
+  state/          Profile store and its React provider
+  styles/         Fonts, design tokens, themes and global styles
+  tests/          Test setup, fixtures and integration tests
 ```
 
-Os testes unitários vivem junto ao código (`*.test.ts[x]`).
+`domain/` and `lib/` have no React dependency. The UI never touches
+`localStorage` directly: it goes through the store, which uses the repository.
 
-## Temas
+Unit tests live next to the code they cover (`*.test.ts` / `*.test.tsx`).
 
-`Obsidian`, `Blood Moon` e `Frozen Abyss` são conjuntos de custom properties em
-`src/styles/themes.css`, aplicados com `<html data-theme="…">`. Mudar de tema
-altera cores, superfícies, brilhos, a arte generativa e as partículas (brasas
-que sobem ou gelo que cai).
+## Theming
 
-## Conteúdo e direitos
+Themes are sets of CSS custom properties defined in `src/styles/themes.css` and
+applied through `<html data-theme="…">`. Theme-independent tokens (typography,
+spacing, radii, blur, motion) live in `src/styles/tokens.css`. Colour tokens are
+chosen to keep body text at a contrast ratio of at least 4.5:1.
 
-- O perfil "Nocturne" é uma persona fictícia, assinalada na UI como demonstração.
-- Bandas, álbuns e equipamento aparecem apenas como texto.
-- Todas as imagens são arte abstrata original gerada localmente; não há
-  logótipos, fotografias nem capas de terceiros.
-- Fontes servidas localmente via Fontsource (licença OFL-1.1): Inter, Big
-  Shoulders Display e JetBrains Mono.
+## Data model and persistence
 
-## Limitações
+The profile type lives in `src/domain/profile.ts`; field limits and formats are
+defined once in `src/domain/limits.ts` and enforced by the Zod schemas in
+`src/lib/validation/schemas.ts`.
 
-- O perfil não é editável; o botão "Editar perfil" está desativado e marcado como "Em breve" (Etapa 3).
-- O tema escolhido não é guardado após refresh (persistência na Etapa 2).
-- Nada é publicado online.
+### Stored document
+
+The profile is saved under the `riffspace:state` key as a versioned envelope:
+
+```json
+{ "app": "riffspace", "schemaVersion": 1, "savedAt": "2026-10-23T12:00:00.000Z", "profile": { "…": "…" } }
+```
+
+### Invariants
+
+- All IDs are lowercase slugs (`[a-z0-9][a-z0-9_-]*`, max 64 chars); rig item IDs are unique.
+- Text fields are trimmed and length-limited (e.g. nickname 3–24, tagline 120, bio 500).
+- Nicknames use lowercase letters, digits, `.`, `_` and `-`, and cannot start or end with a separator.
+- Favourite bands and albums contain no duplicates and only reference existing
+  catalogue or custom entries; list order is the user's ranking.
+- Custom albums always belong to an existing band; custom bands never reuse a catalogue ID.
+- Image and avatar URLs must use `http:` or `https:`.
+- Unknown keys are dropped when parsing.
+
+### Loading rules
+
+| Stored data                     | Behaviour                                                        |
+| ------------------------------- | ---------------------------------------------------------------- |
+| Nothing saved                   | Demo profile; nothing is written until the user changes something |
+| Valid document                  | Loaded as-is                                                     |
+| Broken references or duplicates | Repaired (dangling IDs removed) and loaded, with an info notice  |
+| Older schema version            | Migrated step by step through the registry in `document.ts`      |
+| Newer schema version            | Not loaded or overwritten on start-up; backed up, demo shown, warning |
+| Corrupted JSON / invalid shape  | Backed up to `riffspace:backup`, demo shown, warning             |
+| `localStorage` unavailable      | In-memory fallback with a warning that changes will not persist  |
+
+**Reset demo data** (in the footer) asks for confirmation, then deletes
+`riffspace:state` and restores the original demo profile. The backup key is
+kept. Changes made in another tab are picked up automatically.
+
+## Content and licensing
+
+- The demo profile belongs to a fictional persona and is always labelled as a
+  demonstration in the UI.
+- Band, album and gear names appear as plain text references only.
+- All imagery is abstract artwork generated locally at runtime.
+- The bundled catalogue is a small demo sample and is not intended to be
+  complete.
+
+## Current limitations
+
+- Profiles cannot be edited yet; the _Edit profile_ control is visibly marked
+  as coming soon.
+- Data is stored only in the current browser. Nothing is published online;
+  there is no backend and no public profile URL.
+- Only the most recent unreadable document is kept as a backup.
+
+## Roadmap
+
+- Profile editor with band search, filtering and custom entries
+- Rig builder with add, edit, remove and reorder
+- Public view and validated JSON export/import
+- Visual polish, motion and an accessibility audit
+- CI pipeline and deployment configuration
