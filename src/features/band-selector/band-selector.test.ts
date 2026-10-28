@@ -141,7 +141,7 @@ describe('bandas personalizadas', () => {
     expect(addCustomBand(empty(), { name: '  ', subgenres: [] }, catalog)).toMatchObject({ ok: false })
     expect(addCustomBand(empty(), { name: 'x'.repeat(LIMITS.bandName.max + 1), subgenres: [] }, catalog).ok).toBe(false)
     const dup = addCustomBand(empty(), { name: 'gojira', subgenres: [] }, catalog)
-    expect(dup).toEqual({ ok: false, error: 'Já existe uma banda com esse nome. Procura-a na lista.' })
+    expect(dup).toEqual({ ok: false, error: 'A band with that name already exists.' })
   })
 
   it('rejeita anos e países inválidos', () => {
@@ -197,7 +197,7 @@ describe('álbuns personalizados', () => {
     expect(addCustomAlbum(empty(), { bandId: 'gojira', title: '  ' }, catalog).ok).toBe(false)
     expect(addCustomAlbum(empty(), { bandId: 'gojira', title: 'magma' }, catalog)).toEqual({
       ok: false,
-      error: 'Essa banda já tem um álbum com esse título.',
+      error: 'That band already has an album with that title.',
     })
     // O mesmo título noutra banda é permitido.
     expect(addCustomAlbum(empty(), { bandId: 'opeth', title: 'Magma' }, catalog).ok).toBe(true)

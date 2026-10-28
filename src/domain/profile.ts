@@ -1,12 +1,14 @@
 import type { Album } from './album.ts'
 import type { Band } from './band.ts'
 import type { GearItem } from './gear.ts'
+import type { SocialLink } from './social.ts'
+import type { FeaturedTrack } from './track.ts'
 import type { ThemeId } from './theme.ts'
 
 export type AvatarSpec = { kind: 'generated' } | { kind: 'url'; url: string }
 
 /**
- * Perfil RIFFSPACE (schema v1).
+ * Perfil RIFFSPACE (schema v2).
  *
  * Invariantes — garantidas por lib/validation ao ler e ao atualizar:
  * - `id` e todos os IDs internos seguem ID_PATTERN; os IDs da rig são únicos.
@@ -16,6 +18,8 @@ export type AvatarSpec = { kind: 'generated' } | { kind: 'url'; url: string }
  * - Cada álbum de `customAlbums` pertence a uma banda existente.
  * - Bandas personalizadas têm `isCustom: true` e nunca reutilizam um ID do catálogo.
  * - `subgenres` não tem repetidos (comparação sem distinção de maiúsculas).
+ * - Cada link social é http(s), pertence a um domínio da sua plataforma e não
+ *   há links repetidos (mesmo URL).
  * - `createdAt` / `updatedAt` são datas ISO 8601.
  */
 export interface Profile {
@@ -36,6 +40,10 @@ export interface Profile {
   customAlbums: Album[]
   /** Ordem da rig = ordem de apresentação. */
   rig: GearItem[]
+  /** Links para redes e plataformas, pela ordem de apresentação. */
+  socials: SocialLink[]
+  /** Música em destaque (opcional; campo acrescentado sem migração por ser opcional). */
+  featuredTrack?: FeaturedTrack
   theme: ThemeId
   /** Perfis de demonstração são sempre assinalados como tal na UI. */
   isDemo: boolean

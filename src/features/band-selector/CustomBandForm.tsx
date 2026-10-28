@@ -5,9 +5,10 @@ import { Input } from '../../components/ui/Input.tsx'
 import { Select } from '../../components/ui/Select.tsx'
 import type { Band } from '../../domain/band.ts'
 import { LIMITS, maxYear } from '../../domain/limits.ts'
-import styles from '../profile-editor/ProfileEditor.module.css'
-import { COUNTRY_OPTIONS } from './countries.ts'
+import styles from '../profile-editor/EditorForms.module.css'
+import { countryOptions } from './countries.ts'
 import type { CustomBandInput } from './selection.ts'
+import { useI18n } from '../../i18n/context.ts'
 
 interface CustomBandFormProps {
   /** Banda a editar; sem ela o formulário cria uma nova. */
@@ -26,6 +27,7 @@ export function CustomBandForm({ band, initialName = '', subgenreOptions, onSubm
   const [genres, setGenres] = useState<string[]>(band?.subgenres ?? [])
   const [error, setError] = useState<string>()
   const titleId = useId()
+  const { t } = useI18n()
 
   const toggleGenre = (genre: string) =>
     setGenres((current) =>
@@ -40,7 +42,7 @@ export function CustomBandForm({ band, initialName = '', subgenreOptions, onSubm
     event.preventDefault()
     const parsedYear = year.trim() === '' ? undefined : Number(year)
     if (parsedYear !== undefined && !Number.isInteger(parsedYear)) {
-      setError('O ano tem de ser um número inteiro.')
+      setError(t('validation.yearInteger'))
       return
     }
     setError(onSubmit({ name, country: country || undefined, formedYear: parsedYear, subgenres: genres }))
@@ -49,10 +51,10 @@ export function CustomBandForm({ band, initialName = '', subgenreOptions, onSubm
   return (
     <form className={styles.subform} onSubmit={submit} aria-labelledby={titleId} noValidate>
       <h4 id={titleId} className={styles.subformTitle}>
-        {band ? `Editar “${band.name}”` : 'Nova banda personalizada'}
+        {band ? t('bands.editTitle', { name: band.name }) : t('bands.newTitle')}
       </h4>
       <Input
-        label="Nome da banda"
+        label={t('field.bandName')}
         value={name}
         maxLength={LIMITS.bandName.max}
         required
@@ -61,13 +63,13 @@ export function CustomBandForm({ band, initialName = '', subgenreOptions, onSubm
       />
       <div className={styles.row}>
         <Select
-          label="País (opcional)"
-          options={COUNTRY_OPTIONS}
+          label={t('bands.country')}
+          options={countryOptions()}
           value={country}
           onChange={(event) => setCountry(event.target.value)}
         />
         <Input
-          label="Ano de formação (opcional)"
+          label={t('bands.formedYear')}
           type="number"
           inputMode="numeric"
           min={LIMITS.year.min}
@@ -78,7 +80,7 @@ export function CustomBandForm({ band, initialName = '', subgenreOptions, onSubm
       </div>
       <fieldset className={styles.fieldset}>
         <legend className={styles.legend}>
-          Subgéneros{' '}
+          {t('genres.list')}{' '}
           <span className={styles.count}>
             {genres.length}/{LIMITS.subgenres.max}
           </span>
@@ -100,10 +102,10 @@ export function CustomBandForm({ band, initialName = '', subgenreOptions, onSubm
       )}
       <div className={styles.subformActions}>
         <Button variant="ghost" size="sm" onClick={onCancel}>
-          Cancelar
+          {t('common.cancel')}
         </Button>
         <Button type="submit" variant="primary" size="sm">
-          {band ? 'Guardar banda' : 'Adicionar banda'}
+          {band ? t('bands.saveBand') : t('bands.addBand')}
         </Button>
       </div>
     </form>

@@ -1,292 +1,407 @@
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { STORAGE_KEY } from '../lib/persistence/repository.ts'
-import { createMemoryStorage } from '../lib/persistence/storage.ts'
+import { createMemoryStorage, type KeyValueStorage } from '../lib/persistence/storage.ts'
 import { renderApp } from './renderApp.tsx'
 
-function openEditor() {
-  fireEvent.click(screen.getByRole('button', { name: 'Editar perfil' }))
-  return screen.getByRole('dialog', { name: /Editar perfil|Novo perfil|@/ })
+/** Entra no editor a partir da página do perfil, como um utilizador. */
+function openEditor(storage: KeyValueStorage = createMemoryStorage()) {
+  const utils = renderApp(storage)
+  fireEvent.click(screen.getByRole('link', { name: 'edit profile' }))
+  return utils
 }
 
-function goToTab(editor: HTMLElement, name: string) {
-  fireEvent.click(within(editor).getByRole('tab', { name: new RegExp(`^${name}`) }))
+const form = () => within(document.getElementById('editor-panel')!)
+// O cabeçalho do editor é o que contém o h1 (os cards também têm <header>).
+const header = () => within(screen.getByRole('heading', { level: 1 }).closest('header')!)
+const preview = () => within(screen.getByRole('complementary', { name: 'card preview' }))
+const previewName = () => preview().getByRole('heading', { level: 2 })
+
+function goToTab(name: string) {
+  const tablist = screen.getByRole('tablist', { name: 'editor sections' })
+  fireEvent.click(within(tablist).getByRole('tab', { name: new RegExp(`^${name}`) }))
 }
 
-function heroHeading() {
-  return screen.getByRole('heading', { level: 1 })
+function save() {
+  fireEvent.click(header().getByRole('button', { name: 'save' }))
 }
 
-function section(editor: HTMLElement, title: RegExp) {
-  return within(within(editor).getByRole('heading', { name: title }).closest('section')!)
+function section(title: RegExp) {
+  return within(form().getByRole('heading', { name: title }).closest('section')!)
 }
 
-function rankingNames(editor: HTMLElement) {
-  return section(editor, /O teu ranking/)
+function rankingNames() {
+  return section(/your ranking/)
     .queryAllByRole('listitem')
-    .map((item) => item.textContent?.replace(/^\d+/, '').replace('Personalizada', '').trim())
+    .map((item) => item.textContent?.replace(/^\d+/, '').replace('custom', '').trim())
 }
+
+describe('página de edição', () => {
+  it('abre numa rota própria com secções e pré-visualização', () => {
+    const { router } = openEditor()
+    expect(router.state.location.pathname).toBe('/edit')
+    expect(screen.getByRole('heading', { level: 1, name: 'demo profile' })).toBeInTheDocument()
+    const tabs = within(screen.getByRole('tablist', { name: 'editor sections' })).getAllByRole('tab')
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      'profile',
+      'appearance',
+      'track',
+      'socials',
+      'bands',
+      'albums',
+      'genres',
+      'rig',
+      'settings',
+    ])
+    expect(screen.getByRole('tablist', { name: 'editor sections' })).toHaveAttribute('aria-orientation', 'vertical')
+    expect(previewName()).toHaveTextContent('Nocturne')
+  })
+
+  it('entrar diretamente em /edit também funciona', () => {
+    renderApp(createMemoryStorage(), '/edit')
+    expect(form().getByLabelText('nickname')).toHaveValue('nocturne')
+  })
+})
 
 describe('editor — identidade', () => {
   it('a pré-visualização atualiza enquanto se escreve, sem guardar', () => {
     const storage = createMemoryStorage()
-    renderApp(storage)
-    const editor = openEditor()
+    openEditor(storage)
+    fireEvent.change(form().getByLabelText('display name (optional)'), { target: { value: 'Lâmina' } })
+    fireEvent.change(form().getByLabelText('tagline'), { target: { value: 'Riffs ao vivo' } })
 
-    fireEvent.change(within(editor).getByLabelText('Nome de apresentação (opcional)'), { target: { value: 'Lâmina' } })
-    fireEvent.change(within(editor).getByLabelText('Tagline'), { target: { value: 'Riffs ao vivo' } })
-
-    expect(heroHeading()).toHaveTextContent('Lâmina')
-    expect(screen.getByText('Riffs ao vivo')).toBeInTheDocument()
+    expect(previewName()).toHaveTextContent('Lâmina')
+    expect(preview().getByText('Riffs ao vivo')).toBeInTheDocument()
     expect(storage.getItem(STORAGE_KEY)).toBeNull()
-    expect(within(editor).getByText('Alterações por guardar.')).toBeInTheDocument()
+    expect(header().getByText('Unsaved changes.')).toBeInTheDocument()
   })
 
-  it('o nickname é convertido para minúsculas e validado', () => {
-    renderApp()
-    const editor = openEditor()
-    const nickname = within(editor).getByLabelText('Nickname')
-
+  it('o nickname é convertido para minúsculas e validado depois de sair do campo', () => {
+    openEditor()
+    const nickname = form().getByLabelText('nickname')
     fireEvent.change(nickname, { target: { value: 'AB' } })
     expect(nickname).toHaveValue('ab')
-    // O erro só aparece depois de sair do campo.
     expect(nickname).not.toHaveAttribute('aria-invalid')
     fireEvent.blur(nickname)
     expect(nickname).toHaveAttribute('aria-invalid', 'true')
-    expect(nickname).toHaveAccessibleDescription(expect.stringContaining('pelo menos 3 caracteres'))
+    expect(nickname).toHaveAccessibleDescription(expect.stringContaining('at least 3 characters'))
   })
 
-  it('guardar com erros é bloqueado, mostra o resumo e volta ao separador com erro', () => {
+  it('guardar com erros é bloqueado e volta à secção com erro', () => {
     const storage = createMemoryStorage()
-    renderApp(storage)
-    const editor = openEditor()
-    fireEvent.change(within(editor).getByLabelText('Nickname'), { target: { value: '_mau_' } })
-    goToTab(editor, 'Bandas')
+    const { router } = openEditor(storage)
+    fireEvent.change(form().getByLabelText('nickname'), { target: { value: '_mau_' } })
+    goToTab('bands')
+    save()
 
-    fireEvent.click(within(editor).getByRole('button', { name: 'Guardar' }))
-    expect(within(editor).getByRole('alert')).toHaveTextContent('Corrige 1 campo antes de guardar.')
-    expect(within(editor).getByRole('tab', { name: /^Perfil/ })).toHaveAttribute('aria-selected', 'true')
-    expect(within(editor).getByLabelText('Nickname')).toHaveAttribute('aria-invalid', 'true')
+    expect(header().getByRole('alert')).toHaveTextContent('Fix 1 field before saving.')
+    expect(screen.getByRole('tab', { name: /^profile/ })).toHaveAttribute('aria-selected', 'true')
+    expect(form().getByLabelText('nickname')).toHaveAttribute('aria-invalid', 'true')
+    expect(router.state.location.pathname).toBe('/edit')
     expect(storage.getItem(STORAGE_KEY)).toBeNull()
   })
 
-  it('guardar persiste, tira a etiqueta de demo e sobrevive a um refresh', () => {
+  it('guardar persiste, volta ao perfil sem etiqueta de demo e sobrevive a um refresh', () => {
     const storage = createMemoryStorage()
-    renderApp(storage)
-    const editor = openEditor()
-    fireEvent.change(within(editor).getByLabelText('Nickname'), { target: { value: 'lamina' } })
-    fireEvent.change(within(editor).getByLabelText('Nome de apresentação (opcional)'), { target: { value: 'Lâmina' } })
-    fireEvent.change(within(editor).getByLabelText('Bio'), { target: { value: 'Toco desde 2010.' } })
-    fireEvent.click(within(editor).getByRole('button', { name: 'Guardar' }))
+    const { router } = openEditor(storage)
+    fireEvent.change(form().getByLabelText('nickname'), { target: { value: 'lamina' } })
+    fireEvent.change(form().getByLabelText('display name (optional)'), { target: { value: 'Lâmina' } })
+    fireEvent.change(form().getByLabelText('bio'), { target: { value: 'Toco desde 2010.' } })
+    save()
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.queryByText('Perfil de demonstração')).not.toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/')
+    expect(screen.getByRole('heading', { level: 1, name: 'Lâmina' })).toBeInTheDocument()
+    expect(screen.queryByText('demo')).not.toBeInTheDocument()
 
     cleanup()
     renderApp(storage)
-    expect(heroHeading()).toHaveTextContent('Lâmina')
+    expect(screen.getByRole('heading', { level: 1, name: 'Lâmina' })).toBeInTheDocument()
     expect(screen.getByText('@lamina')).toBeInTheDocument()
     expect(screen.getByText('Toco desde 2010.')).toBeInTheDocument()
   })
 
-  it('avatar por URL inválido não pode ser guardado', () => {
-    renderApp()
-    const editor = openEditor()
-    fireEvent.click(within(editor).getByLabelText(/Imagem por URL/))
-    fireEvent.change(within(editor).getByLabelText('URL da imagem'), { target: { value: 'javascript:alert(1)' } })
-    fireEvent.click(within(editor).getByRole('button', { name: 'Guardar' }))
-    expect(within(editor).getByLabelText('URL da imagem')).toHaveAccessibleDescription(expect.stringContaining('http'))
+  it('avatar por URL inválido mostra o erro ao guardar', () => {
+    openEditor()
+    fireEvent.click(form().getByLabelText(/image from a link/))
+    fireEvent.change(form().getByLabelText('image url'), { target: { value: 'javascript:alert(1)' } })
+    save()
+    expect(form().getByLabelText('image url')).toHaveAccessibleDescription(expect.stringContaining('http'))
   })
 
   it('avatar com imagem quebrada mostra o sigilo gerado', () => {
-    renderApp()
-    const editor = openEditor()
-    fireEvent.click(within(editor).getByLabelText(/Imagem por URL/))
-    fireEvent.change(within(editor).getByLabelText('URL da imagem'), { target: { value: 'https://example.invalid/x.png' } })
-    const preview = within(editor).getByRole('img', { name: 'Pré-visualização do avatar' })
-    expect(preview.tagName).toBe('IMG')
-    fireEvent.error(preview)
-    expect(within(editor).getByRole('img', { name: 'Pré-visualização do avatar' }).tagName).toBe('svg')
+    openEditor()
+    fireEvent.click(form().getByLabelText(/image from a link/))
+    fireEvent.change(form().getByLabelText('image url'), { target: { value: 'https://example.invalid/x.png' } })
+    const img = form().getByRole('img', { name: 'avatar preview' })
+    expect(img.tagName).toBe('IMG')
+    fireEvent.error(img)
+    expect(form().getByRole('img', { name: 'avatar preview' }).tagName).toBe('svg')
   })
 })
 
-describe('editor — cancelar e começar do zero', () => {
-  it('cancelar sem alterações fecha logo', () => {
-    renderApp()
-    const editor = openEditor()
-    fireEvent.click(within(editor).getByRole('button', { name: 'Cancelar' }))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+describe('editor — sair', () => {
+  it('cancelar sem alterações volta logo ao perfil', () => {
+    const { router, store } = openEditor()
+    fireEvent.click(header().getByRole('button', { name: 'cancel' }))
+    expect(router.state.location.pathname).toBe('/')
+    expect(store.getState().draft).toBeNull()
   })
 
-  it('cancelar com alterações pede confirmação e descartar repõe a pré-visualização', () => {
-    renderApp()
-    const editor = openEditor()
-    fireEvent.change(within(editor).getByLabelText('Nome de apresentação (opcional)'), { target: { value: 'Temporário' } })
-    fireEvent.click(within(editor).getByRole('button', { name: 'Cancelar' }))
+  it('sair com alterações pede confirmação; continuar mantém o rascunho', () => {
+    const { router } = openEditor()
+    fireEvent.change(form().getByLabelText('display name (optional)'), { target: { value: 'Temporário' } })
+    fireEvent.click(header().getByRole('button', { name: 'cancel' }))
 
-    const confirm = screen.getByRole('dialog', { name: 'Descartar alterações?' })
-    fireEvent.click(within(confirm).getByRole('button', { name: 'Continuar a editar' }))
-    expect(heroHeading()).toHaveTextContent('Temporário')
+    const confirm = screen.getByRole('dialog', { name: 'Discard changes?' })
+    fireEvent.click(within(confirm).getByRole('button', { name: 'keep editing' }))
+    expect(router.state.location.pathname).toBe('/edit')
+    expect(previewName()).toHaveTextContent('Temporário')
+  })
 
-    fireEvent.click(within(editor).getByRole('button', { name: 'Cancelar' }))
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Descartar alterações?' })).getByRole('button', { name: 'Descartar' }))
-    expect(heroHeading()).toHaveTextContent('Nocturne')
+  it('descartar sai para o perfil sem guardar', () => {
+    const storage = createMemoryStorage()
+    const { router } = openEditor(storage)
+    fireEvent.change(form().getByLabelText('display name (optional)'), { target: { value: 'Temporário' } })
+    fireEvent.click(header().getByRole('link', { name: /profile/ }))
+
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Discard changes?' })).getByRole('button', { name: 'discard' }))
+    expect(router.state.location.pathname).toBe('/')
+    expect(screen.getByRole('heading', { level: 1, name: 'Nocturne' })).toBeInTheDocument()
+    expect(storage.getItem(STORAGE_KEY)).toBeNull()
+  })
+
+  it('"voltar" do browser com alterações também é bloqueado', async () => {
+    const { router } = openEditor()
+    fireEvent.change(form().getByLabelText('tagline'), { target: { value: 'Mudada' } })
+    await act(() => router.navigate(-1))
+    expect(await screen.findByRole('dialog', { name: 'Discard changes?' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/edit')
   })
 
   it('"Começar do zero" cria um perfil vazio que exige nickname', () => {
     const storage = createMemoryStorage()
-    renderApp(storage)
-    const editor = openEditor()
-    fireEvent.click(within(editor).getByRole('button', { name: 'Começar do zero' }))
+    openEditor(storage)
+    fireEvent.click(screen.getByRole('button', { name: 'start from scratch' }))
 
-    expect(within(editor).getByLabelText('Nickname')).toHaveValue('')
-    expect(screen.getByText('Ainda não há bandas favoritas.')).toBeInTheDocument()
-    expect(screen.getByText('Ainda não há equipamento na cadeia de sinal.')).toBeInTheDocument()
+    expect(form().getByLabelText('nickname')).toHaveValue('')
+    expect(previewName()).toHaveTextContent('unnamed')
+    save()
+    expect(header().getByRole('alert')).toBeInTheDocument()
 
-    fireEvent.click(within(editor).getByRole('button', { name: 'Guardar' }))
-    expect(within(editor).getByRole('alert')).toBeInTheDocument()
-
-    fireEvent.change(within(editor).getByLabelText('Nickname'), { target: { value: 'novato' } })
-    fireEvent.click(within(editor).getByRole('button', { name: 'Guardar' }))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(JSON.parse(storage.getItem(STORAGE_KEY)!).profile).toMatchObject({ nickname: 'novato', rig: [], isDemo: false })
+    fireEvent.change(form().getByLabelText('nickname'), { target: { value: 'novato' } })
+    save()
+    expect(JSON.parse(storage.getItem(STORAGE_KEY)!).profile).toMatchObject({
+      nickname: 'novato',
+      rig: [],
+      socials: [],
+      isDemo: false,
+    })
   })
 })
 
 describe('editor — bandas', () => {
   it('pesquisa por nome e filtra por subgénero', () => {
-    renderApp()
-    const editor = openEditor()
-    goToTab(editor, 'Bandas')
+    openEditor()
+    goToTab('bands')
+    fireEvent.change(form().getByLabelText('name'), { target: { value: 'ins' } })
+    expect(form().getByText('1 result')).toBeInTheDocument()
+    expect(form().getByRole('button', { name: 'add Insomnium to favourites' })).toBeInTheDocument()
 
-    fireEvent.change(within(editor).getByLabelText('Nome'), { target: { value: 'ins' } })
-    expect(within(editor).getByText('1 resultado')).toBeInTheDocument()
-    expect(within(editor).getByRole('button', { name: 'Adicionar Insomnium às favoritas' })).toBeInTheDocument()
-
-    fireEvent.change(within(editor).getByLabelText('Nome'), { target: { value: '' } })
-    fireEvent.change(within(editor).getByLabelText('Subgénero'), { target: { value: 'Black Metal' } })
-    expect(within(editor).getByText('1 resultado')).toBeInTheDocument()
-    expect(within(editor).getByRole('button', { name: 'Adicionar Emperor às favoritas' })).toBeInTheDocument()
+    fireEvent.change(form().getByLabelText('name'), { target: { value: '' } })
+    fireEvent.change(form().getByLabelText('subgenre'), { target: { value: 'Black Metal' } })
+    expect(form().getByText('1 result')).toBeInTheDocument()
+    expect(form().getByRole('button', { name: 'add Emperor to favourites' })).toBeInTheDocument()
   })
 
   it('pesquisa sem resultados mostra estado vazio com atalho para banda personalizada', () => {
-    renderApp()
-    const editor = openEditor()
-    goToTab(editor, 'Bandas')
-    fireEvent.change(within(editor).getByLabelText('Nome'), { target: { value: 'Garagem Negra' } })
-
-    expect(within(editor).getByText('0 resultados')).toBeInTheDocument()
-    expect(within(editor).getByText('Nenhuma banda corresponde a “Garagem Negra”.')).toBeInTheDocument()
-    fireEvent.click(within(editor).getByRole('button', { name: 'Adicionar “Garagem Negra” como banda personalizada' }))
-    expect(within(editor).getByLabelText('Nome da banda')).toHaveValue('Garagem Negra')
+    openEditor()
+    goToTab('bands')
+    fireEvent.change(form().getByLabelText('name'), { target: { value: 'Garagem Negra' } })
+    expect(form().getByText('0 results')).toBeInTheDocument()
+    expect(form().getByText('No band matches “Garagem Negra”.')).toBeInTheDocument()
+    fireEvent.click(form().getByRole('button', { name: 'add “Garagem Negra” as a custom band' }))
+    expect(form().getByLabelText('Band name')).toHaveValue('Garagem Negra')
   })
 
   it('adicionar, ordenar e remover favoritas atualiza a pré-visualização', () => {
-    renderApp()
-    const editor = openEditor()
-    goToTab(editor, 'Bandas')
+    openEditor()
+    goToTab('bands')
+    fireEvent.click(form().getByRole('button', { name: 'add Emperor to favourites' }))
+    expect(rankingNames().at(-1)).toBe('Emperor')
+    fireEvent.click(form().getByRole('button', { name: 'move Emperor up' }))
+    expect(rankingNames().slice(-2)).toEqual(['Emperor', 'Meshuggah'])
 
-    fireEvent.click(within(editor).getByRole('button', { name: 'Adicionar Emperor às favoritas' }))
-    expect(rankingNames(editor).at(-1)).toBe('Emperor')
-    fireEvent.click(within(editor).getByRole('button', { name: 'Subir Emperor' }))
-    expect(rankingNames(editor).slice(-2)).toEqual(['Emperor', 'Meshuggah'])
+    expect(form().getByRole('button', { name: 'move Gojira up' })).toBeDisabled()
+    fireEvent.click(form().getByRole('button', { name: 'move Gojira down' }))
+    expect(rankingNames().slice(0, 2)).toEqual(['Opeth', 'Gojira'])
+    fireEvent.click(section(/your ranking/).getByRole('button', { name: 'remove Opeth from favourites' }))
 
-    fireEvent.click(within(editor).getByRole('button', { name: 'Subir Gojira' }))
-    expect(within(editor).getByRole('button', { name: 'Subir Gojira' })).toBeDisabled()
-    fireEvent.click(within(editor).getByRole('button', { name: 'Descer Gojira' }))
-    expect(rankingNames(editor).slice(0, 2)).toEqual(['Opeth', 'Gojira'])
-
-    fireEvent.click(section(editor, /O teu ranking/).getByRole('button', { name: 'Remover Opeth das favoritas' }))
-    expect(rankingNames(editor)[0]).toBe('Gojira')
-
-    const preview = screen.getByRole('region', { name: 'Bandas favoritas' })
-    const previewNames = within(preview).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
-    expect(previewNames).toEqual(['Gojira', 'Moonspell', 'At the Gates', 'Mastodon', 'Emperor', 'Meshuggah'])
+    fireEvent.click(preview().getByRole('tab', { name: /^music/ }))
+    const names = within(preview().getByRole('region', { name: 'favourite bands' }))
+      .getAllByRole('heading', { level: 4 })
+      .map((h) => h.textContent)
+    expect(names).toEqual(['Gojira', 'Moonspell', 'At the Gates', 'Mastodon', 'Emperor', 'Meshuggah'])
   })
 
   it('cria, edita e apaga uma banda personalizada; persiste depois de guardar', () => {
     const storage = createMemoryStorage()
-    renderApp(storage)
-    const editor = openEditor()
-    goToTab(editor, 'Bandas')
+    openEditor(storage)
+    goToTab('bands')
+    fireEvent.click(form().getByRole('button', { name: 'new band' }))
+    fireEvent.change(form().getByLabelText('Band name'), { target: { value: 'Garagem Negra' } })
+    fireEvent.change(form().getByLabelText('country (optional)'), { target: { value: 'PT' } })
+    fireEvent.change(form().getByLabelText('formed in (optional)'), { target: { value: '2019' } })
+    fireEvent.click(form().getByRole('button', { name: 'Doom Metal' }))
+    fireEvent.click(form().getByRole('button', { name: 'add band' }))
 
-    fireEvent.click(within(editor).getByRole('button', { name: 'Nova banda' }))
-    fireEvent.change(within(editor).getByLabelText('Nome da banda'), { target: { value: 'Garagem Negra' } })
-    fireEvent.change(within(editor).getByLabelText('País (opcional)'), { target: { value: 'PT' } })
-    fireEvent.change(within(editor).getByLabelText('Ano de formação (opcional)'), { target: { value: '2019' } })
-    fireEvent.click(within(editor).getByRole('button', { name: 'Doom Metal' }))
-    fireEvent.click(within(editor).getByRole('button', { name: 'Adicionar banda' }))
+    expect(rankingNames().at(-1)).toBe('Garagem Negra')
+    expect(section(/custom bands/).getByText('Portugal · 2019 · Doom Metal')).toBeInTheDocument()
 
-    expect(rankingNames(editor).at(-1)).toBe('Garagem Negra')
-    expect(section(editor, /Bandas personalizadas/).getByText('Portugal · 2019 · Doom Metal')).toBeInTheDocument()
+    fireEvent.click(form().getByRole('button', { name: 'edit Garagem Negra' }))
+    fireEvent.change(form().getByLabelText('Band name'), { target: { value: 'Garagem Branca' } })
+    fireEvent.click(form().getByRole('button', { name: 'save band' }))
+    expect(rankingNames().at(-1)).toBe('Garagem Branca')
+    save()
 
-    fireEvent.click(within(editor).getByRole('button', { name: 'Editar Garagem Negra' }))
-    fireEvent.change(within(editor).getByLabelText('Nome da banda'), { target: { value: 'Garagem Branca' } })
-    fireEvent.click(within(editor).getByRole('button', { name: 'Guardar banda' }))
-    expect(rankingNames(editor).at(-1)).toBe('Garagem Branca')
-
-    fireEvent.click(within(editor).getByRole('button', { name: 'Guardar' }))
     cleanup()
-    renderApp(storage)
-    expect(screen.getByRole('heading', { level: 3, name: 'Garagem Branca' })).toBeInTheDocument()
-
-    const reopened = openEditor()
-    goToTab(reopened, 'Bandas')
-    fireEvent.click(within(reopened).getByRole('button', { name: 'Apagar Garagem Branca' }))
-    expect(within(reopened).getByText('Ainda não adicionaste bandas fora do catálogo.')).toBeInTheDocument()
-    fireEvent.click(within(reopened).getByRole('button', { name: 'Guardar' }))
-    expect(screen.queryByRole('heading', { level: 3, name: 'Garagem Branca' })).not.toBeInTheDocument()
+    openEditor(storage)
+    goToTab('bands')
+    fireEvent.click(form().getByRole('button', { name: 'delete Garagem Branca' }))
+    expect(form().getByText('You have not added any bands outside the catalogue yet.')).toBeInTheDocument()
+    save()
+    expect(JSON.parse(storage.getItem(STORAGE_KEY)!).profile.customBands).toEqual([])
   })
 
   it('banda personalizada com nome repetido é recusada com mensagem', () => {
-    renderApp()
-    const editor = openEditor()
-    goToTab(editor, 'Bandas')
-    fireEvent.click(within(editor).getByRole('button', { name: 'Nova banda' }))
-    fireEvent.change(within(editor).getByLabelText('Nome da banda'), { target: { value: 'opeth' } })
-    fireEvent.click(within(editor).getByRole('button', { name: 'Adicionar banda' }))
-    expect(within(editor).getByRole('alert')).toHaveTextContent('Já existe uma banda com esse nome')
+    openEditor()
+    goToTab('bands')
+    fireEvent.click(form().getByRole('button', { name: 'new band' }))
+    fireEvent.change(form().getByLabelText('Band name'), { target: { value: 'opeth' } })
+    fireEvent.click(form().getByRole('button', { name: 'add band' }))
+    expect(form().getByRole('alert')).toHaveTextContent('A band with that name already exists')
   })
 })
 
 describe('editor — álbuns e subgéneros', () => {
   it('alterna álbuns favoritos e cria um álbum personalizado', () => {
-    renderApp()
-    const editor = openEditor()
-    goToTab(editor, 'Álbuns')
-
-    const magma = within(editor).getByRole('button', { name: /Magma/ })
+    openEditor()
+    goToTab('albums')
+    const magma = form().getByRole('button', { name: /^Magma/ })
     expect(magma).toHaveAttribute('aria-pressed', 'false')
     fireEvent.click(magma)
     expect(magma).toHaveAttribute('aria-pressed', 'true')
-    expect(within(screen.getByRole('region', { name: 'Álbuns favoritos' })).getByText('Magma')).toBeInTheDocument()
 
-    fireEvent.click(within(editor).getByRole('button', { name: 'Adicionar álbum de Gojira' }))
-    fireEvent.change(within(editor).getByLabelText('Título'), { target: { value: 'Terra Incognita' } })
-    fireEvent.change(within(editor).getByLabelText('Ano (opcional)'), { target: { value: '2001' } })
-    fireEvent.click(within(editor).getByRole('button', { name: 'Adicionar álbum' }))
+    fireEvent.click(form().getByRole('button', { name: 'add album by Gojira' }))
+    fireEvent.change(form().getByLabelText('title'), { target: { value: 'Terra Incognita' } })
+    fireEvent.change(form().getByLabelText('year (optional)'), { target: { value: '2001' } })
+    fireEvent.click(form().getByRole('button', { name: 'add album' }))
+    expect(form().getByRole('button', { name: /^Terra Incognita/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(form().getByRole('button', { name: 'delete Terra Incognita' })).toBeInTheDocument()
 
-    expect(within(editor).getByRole('button', { name: /^Terra Incognita/ })).toHaveAttribute('aria-pressed', 'true')
-    expect(within(editor).getByRole('button', { name: 'Apagar Terra Incognita' })).toBeInTheDocument()
+    fireEvent.click(preview().getByRole('tab', { name: /^music/ }))
+    expect(within(preview().getByRole('region', { name: 'favourite albums' })).getByText('Terra Incognita')).toBeInTheDocument()
   })
 
   it('escolhe subgéneros, adiciona um personalizado e respeita o limite', () => {
-    renderApp()
-    const editor = openEditor()
-    goToTab(editor, 'Géneros')
+    openEditor()
+    goToTab('genres')
+    fireEvent.click(form().getByRole('button', { name: 'Doom Metal' }))
+    expect(form().getByRole('button', { name: 'Doom Metal' })).toHaveAttribute('aria-pressed', 'true')
 
-    fireEvent.click(within(editor).getByRole('button', { name: 'Doom Metal' }))
-    expect(within(editor).getByRole('button', { name: 'Doom Metal' })).toHaveAttribute('aria-pressed', 'true')
-
-    fireEvent.change(within(editor).getByLabelText('Outro subgénero'), { target: { value: 'Blackgaze' } })
-    fireEvent.click(within(editor).getByRole('button', { name: 'Adicionar' }))
-    expect(within(editor).getByRole('button', { name: 'Blackgaze' })).toHaveAttribute('aria-pressed', 'true')
-    expect(within(screen.getByRole('list', { name: 'Subgéneros favoritos' })).getByText('Blackgaze')).toBeInTheDocument()
+    fireEvent.change(form().getByLabelText('other subgenre'), { target: { value: 'Blackgaze' } })
+    fireEvent.click(form().getByRole('button', { name: 'add' }))
+    expect(form().getByRole('button', { name: 'Blackgaze' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(preview().getByRole('list', { name: 'subgenres' })).getByText('Blackgaze')).toBeInTheDocument()
 
     // Demo tem 4 + 2 = 6; mais 2 chega ao limite de 8 e o seguinte é recusado.
-    fireEvent.click(within(editor).getByRole('button', { name: 'Black Metal' }))
-    fireEvent.click(within(editor).getByRole('button', { name: 'Death Metal' }))
-    fireEvent.click(within(editor).getByRole('button', { name: 'Sludge Metal' }))
-    expect(within(editor).getByRole('alert')).toHaveTextContent('Podes escolher até 8 subgéneros.')
+    fireEvent.click(form().getByRole('button', { name: 'Black Metal' }))
+    fireEvent.click(form().getByRole('button', { name: 'Death Metal' }))
+    fireEvent.click(form().getByRole('button', { name: 'Sludge Metal' }))
+    expect(form().getByRole('alert')).toHaveTextContent('You can pick up to 8 subgenres.')
+  })
+})
+
+describe('editor — socials', () => {
+  function addLink(platform: string, value: string) {
+    fireEvent.click(form().getByRole('button', { name: 'add link' }))
+    fireEvent.change(form().getByLabelText('platform'), { target: { value: platform } })
+    fireEvent.change(form().getByLabelText(/^link/), { target: { value } })
+    fireEvent.click(within(form().getByRole('form', { name: 'new link' })).getByRole('button', { name: 'add link' }))
+  }
+
+  it('aceita @handle, valida o domínio e mostra o link na pré-visualização', () => {
+    openEditor()
+    goToTab('socials')
+    addLink('instagram', '@lamina.riffs')
+    expect(form().getByText('instagram.com/lamina.riffs')).toBeInTheDocument()
+    expect(form().getByRole('button', { name: 'add link' })).toHaveFocus()
+
+    addLink('spotify', 'https://example.com/fake')
+    expect(form().getByRole('alert')).toHaveTextContent('This link does not look like a Spotify link.')
+  })
+
+  it('links repetidos são recusados', () => {
+    openEditor()
+    goToTab('socials')
+    addLink('website', 'https://example.org')
+    addLink('website', 'example.org')
+    expect(form().getByRole('alert')).toHaveTextContent('That link is already on your profile.')
+  })
+
+  it('os links de demonstração são removidos ao guardar o perfil como teu', () => {
+    const storage = createMemoryStorage()
+    openEditor(storage)
+    goToTab('socials')
+    expect(form().getAllByText('demo')).toHaveLength(4)
+    expect(form().getByText(/removed when you save/)).toBeInTheDocument()
+    addLink('bandcamp', 'https://lamina.bandcamp.com')
+    save()
+
+    expect(JSON.parse(storage.getItem(STORAGE_KEY)!).profile.socials).toEqual([
+      expect.objectContaining({ platform: 'bandcamp', url: 'https://lamina.bandcamp.com' }),
+    ])
+    expect(screen.getByRole('link', { name: /Bandcamp: lamina\.bandcamp\.com/ })).toHaveAttribute(
+      'href',
+      'https://lamina.bandcamp.com',
+    )
+  })
+
+  it('editar, reordenar e remover links', () => {
+    openEditor()
+    goToTab('socials')
+    fireEvent.click(form().getByRole('button', { name: 'move Instagram down' }))
+    // Bandcamp passou a primeiro: o seu "Subir" fica desativado e o do Instagram ativo.
+    expect(form().getByRole('button', { name: 'move Bandcamp up' })).toBeDisabled()
+    expect(form().getByRole('button', { name: 'move Instagram up' })).toBeEnabled()
+
+    fireEvent.click(form().getByRole('button', { name: 'edit Website' }))
+    fireEvent.change(form().getByLabelText('link'), { target: { value: 'https://example.net' } })
+    fireEvent.click(form().getByRole('button', { name: 'save link' }))
+    expect(form().getByText('example.net')).toBeInTheDocument()
+
+    fireEvent.click(form().getByRole('button', { name: 'remove Website' }))
+    expect(form().queryByText('example.net')).not.toBeInTheDocument()
+  })
+})
+
+describe('editor — aparência', () => {
+  it('o tema muda com as setas e reflete-se logo na pré-visualização', () => {
+    openEditor()
+    goToTab('appearance')
+    const obsidian = form().getByRole('radio', { name: 'Obsidian' })
+    expect(obsidian).toHaveAttribute('aria-checked', 'true')
+    expect(obsidian).toHaveAttribute('tabindex', '0')
+
+    fireEvent.keyDown(obsidian, { key: 'ArrowRight' })
+    const bloodMoon = form().getByRole('radio', { name: 'Blood Moon' })
+    expect(bloodMoon).toHaveFocus()
+    expect(bloodMoon).toHaveAttribute('aria-checked', 'true')
+    expect(document.documentElement.dataset.theme).toBe('blood-moon')
+    expect(within(preview().getByRole('contentinfo')).getByText('Blood Moon')).toBeInTheDocument()
+    expect(header().getByText('Unsaved changes.')).toBeInTheDocument()
+
+    fireEvent.keyDown(bloodMoon, { key: 'ArrowLeft' })
+    fireEvent.keyDown(form().getByRole('radio', { name: 'Obsidian' }), { key: 'ArrowLeft' })
+    expect(form().getByRole('radio', { name: 'Frozen Abyss' })).toHaveAttribute('aria-checked', 'true')
   })
 })

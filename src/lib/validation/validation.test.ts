@@ -98,8 +98,8 @@ describe('parseProfile', () => {
 describe('validação de campos', () => {
   it('nickname: normaliza para minúsculas e aplica comprimento e formato', () => {
     expect(nicknameSchema.parse('  Nocturne ')).toBe('nocturne')
-    expect(validateField(nicknameSchema, 'ab')).toMatch(/pelo menos 3/)
-    expect(validateField(nicknameSchema, 'a'.repeat(LIMITS.nickname.max + 1))).toMatch(/máximo/)
+    expect(validateField(nicknameSchema, 'ab')).toMatch(/at least 3/)
+    expect(validateField(nicknameSchema, 'a'.repeat(LIMITS.nickname.max + 1))).toMatch(/up to 24/)
     expect(validateField(nicknameSchema, '_riff')).toBeDefined()
     expect(validateField(nicknameSchema, 'riff_')).toBeDefined()
     expect(validateField(nicknameSchema, 'riff space')).toBeDefined()
@@ -108,7 +108,7 @@ describe('validação de campos', () => {
 
   it('tagline e bio aceitam vazio mas não excesso', () => {
     expect(validateField(taglineSchema, '')).toBeUndefined()
-    expect(validateField(bioSchema, 'x'.repeat(LIMITS.bio.max + 1))).toMatch(/máximo de 500/)
+    expect(validateField(bioSchema, 'x'.repeat(LIMITS.bio.max + 1))).toMatch(/up to 500 characters/)
   })
 
   it('URLs: só http e https', () => {
@@ -183,5 +183,37 @@ describe('normalizeProfile', () => {
     const input = makeProfile({ favoriteBandIds: ['opeth', 'opeth'] })
     normalizeProfile(input, catalog)
     expect(input.favoriteBandIds).toEqual(['opeth', 'opeth'])
+  })
+})
+
+describe('featuredTrack', () => {
+  const track = DEMO_PROFILE.featuredTrack!
+  const withTrack = (overrides: Record<string, unknown>) =>
+    issuesFor(makeProfile({ featuredTrack: { ...track, ...overrides } as typeof track }))
+
+  it('é opcional e a música do demo é válida', () => {
+    expect(issuesFor(makeProfile({ featuredTrack: undefined }))).toEqual([])
+    expect(issuesFor(makeProfile())).toEqual([])
+  })
+
+  it('só aceita URLs https dos domínios oficiais da Apple', () => {
+    expect(withTrack({ previewUrl: 'https://example.com/a.m4a' }).map((i) => i.path)).toContain('featuredTrack.previewUrl')
+    expect(withTrack({ previewUrl: track.previewUrl.replace('https:', 'http:') })).not.toEqual([])
+    expect(withTrack({ artworkUrl: 'https://evil.example/cover.jpg' })).not.toEqual([])
+    expect(withTrack({ trackUrl: 'javascript:alert(1)' })).not.toEqual([])
+    expect(withTrack({ previewUrl: 'https://example.com/a.m4a' })[0]?.message).toMatch(/official Apple links/)
+  })
+
+  it('valida os picos: entre 0 e 1 e dentro dos limites de barras', () => {
+    expect(withTrack({ peaks: [...track.peaks.slice(1), 1.2] })).not.toEqual([])
+    expect(withTrack({ peaks: [...track.peaks.slice(1), -0.1] })).not.toEqual([])
+    expect(withTrack({ peaks: track.peaks.slice(0, LIMITS.peaks.min - 1) })).not.toEqual([])
+    expect(withTrack({ peaks: Array.from({ length: LIMITS.peaks.max + 1 }, () => 0.5) })).not.toEqual([])
+  })
+
+  it('exige título e artista e só aceita a fonte itunes', () => {
+    expect(withTrack({ title: '  ' }).map((i) => i.path)).toContain('featuredTrack.title')
+    expect(withTrack({ artist: '' }).map((i) => i.path)).toContain('featuredTrack.artist')
+    expect(withTrack({ source: 'spotify' })).not.toEqual([])
   })
 })

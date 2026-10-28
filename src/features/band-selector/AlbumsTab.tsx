@@ -7,15 +7,19 @@ import { LIMITS } from '../../domain/limits.ts'
 import { allAlbums, allBands } from '../../domain/profile.ts'
 import { DEMO_CATALOG } from '../../state/createAppStore.ts'
 import type { TabProps } from '../profile-editor/IdentityTab.tsx'
-import styles from '../profile-editor/ProfileEditor.module.css'
+import styles from '../profile-editor/EditorForms.module.css'
+import { useFocusOnClose } from '../profile-editor/useFocusOnClose.ts'
 import { CustomAlbumForm } from './CustomAlbumForm.tsx'
 import { addCustomAlbum, removeCustomAlbum, toggleFavoriteAlbum, updateCustomAlbum } from './selection.ts'
+import { useI18n } from '../../i18n/context.ts'
 
 type FormState = { mode: 'closed' } | { mode: 'create'; bandId?: string } | { mode: 'edit'; album: Album }
 
 export function AlbumsTab({ draft, update }: TabProps) {
+  const { t } = useI18n()
   const [form, setForm] = useState<FormState>({ mode: 'closed' })
   const [feedback, setFeedback] = useState('')
+  const newAlbumRef = useFocusOnClose(form.mode !== 'closed')
 
   const bands = useMemo(() => allBands(draft, DEMO_CATALOG.bands), [draft])
   const albums = useMemo(() => allAlbums(draft, DEMO_CATALOG.albums), [draft])
@@ -39,7 +43,7 @@ export function AlbumsTab({ draft, update }: TabProps) {
     const result = toggleFavoriteAlbum(draft, album.id)
     if (!result.ok) return setFeedback(result.error)
     update(() => result.profile)
-    setFeedback(result.value ? `${album.title} adicionado aos favoritos.` : `${album.title} removido dos favoritos.`)
+    setFeedback(t(result.value ? 'albums.added' : 'albums.removed', { title: album.title }))
   }
 
   return (
@@ -50,14 +54,14 @@ export function AlbumsTab({ draft, update }: TabProps) {
 
       <div className={styles.blockHeader}>
         <p className={styles.note}>
-          Álbuns favoritos:{' '}
+          {t('albums.count')}{' '}
           <span className={styles.count}>
             {draft.favoriteAlbumIds.length}/{LIMITS.favoriteAlbums.max}
           </span>
         </p>
         {form.mode === 'closed' && bands.length > 0 && (
-          <Button size="sm" icon={<Plus />} onClick={() => setForm({ mode: 'create' })}>
-            Novo álbum
+          <Button ref={newAlbumRef} size="sm" icon={<Plus />} onClick={() => setForm({ mode: 'create' })}>
+            {t('albums.newAlbum')}
           </Button>
         )}
       </div>
@@ -77,31 +81,29 @@ export function AlbumsTab({ draft, update }: TabProps) {
             if (!result.ok) return result.error
             update(() => result.profile)
             setForm({ mode: 'closed' })
-            setFeedback(form.mode === 'edit' ? `${result.value.title} atualizado.` : `${result.value.title} adicionado aos favoritos.`)
+            setFeedback(t(form.mode === 'edit' ? 'albums.updated' : 'albums.added', { title: result.value.title }))
             return undefined
           }}
         />
       )}
 
       {groups.length === 0 ? (
-        <p className={styles.empty}>
-          Adiciona bandas favoritas no separador “Bandas” para escolher os álbuns delas, ou cria um álbum personalizado.
-        </p>
+        <p className={styles.empty}>{t('albums.empty')}</p>
       ) : (
         groups.map(({ band, albums: bandAlbums }) => (
-          <section key={band.id} className={styles.block} aria-label={`Álbuns de ${band.name}`}>
+          <section key={band.id} className={styles.block} aria-label={t('albums.ofBand', { name: band.name })}>
             <div className={styles.blockHeader}>
               <h3 className={styles.blockTitle}>{band.name}</h3>
               <Button
                 size="sm"
                 variant="ghost"
                 icon={<Plus />}
-                aria-label={`Adicionar álbum de ${band.name}`}
+                aria-label={t('albums.addFor', { name: band.name })}
                 onClick={() => setForm({ mode: 'create', bandId: band.id })}
               />
             </div>
             {bandAlbums.length === 0 ? (
-              <p className={styles.empty}>Sem álbuns no catálogo para esta banda.</p>
+              <p className={styles.empty}>{t('albums.noneForBand')}</p>
             ) : (
               <ul className={styles.chips}>
                 {bandAlbums.map((album) => {
@@ -118,18 +120,18 @@ export function AlbumsTab({ draft, update }: TabProps) {
                             size="sm"
                             variant="ghost"
                             icon={<Pencil />}
-                            aria-label={`Editar ${album.title}`}
+                            aria-label={t('common.editItem', { name: album.title })}
                             onClick={() => setForm({ mode: 'edit', album })}
                           />
                           <Button
                             size="sm"
                             variant="ghost"
                             icon={<Trash2 />}
-                            aria-label={`Apagar ${album.title}`}
+                            aria-label={t('common.deleteItem', { name: album.title })}
                             onClick={() => {
                               update((d) => removeCustomAlbum(d, album.id))
                               if (form.mode === 'edit' && form.album.id === album.id) setForm({ mode: 'closed' })
-                              setFeedback(`${album.title} apagado.`)
+                              setFeedback(t('albums.deleted', { title: album.title }))
                             }}
                           />
                         </>

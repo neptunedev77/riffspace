@@ -1,3 +1,5 @@
+import { translate } from '../i18n/translate.ts'
+
 export const GEAR_TYPES = [
   'guitar',
   'bass',
@@ -10,14 +12,14 @@ export const GEAR_TYPES = [
 
 export type GearType = (typeof GEAR_TYPES)[number]
 
-export const GEAR_TYPE_LABELS: Record<GearType, string> = {
-  guitar: 'Guitarra',
-  bass: 'Baixo',
-  pedal: 'Pedal',
-  amp: 'Amplificador',
-  cabinet: 'Cabinet',
-  interface: 'Interface de áudio',
-  other: 'Outro',
+/** Nome do tipo de equipamento no idioma ativo. */
+export function gearTypeLabel(type: GearType): string {
+  return translate(`gear.type.${type}`)
+}
+
+/** Nome curto para espaços apertados (nós da cadeia de sinal). */
+export function gearTypeShortLabel(type: GearType): string {
+  return translate(`gear.short.${type}`)
 }
 
 export interface GearItem {
@@ -61,6 +63,6 @@ export function buildSignalChain(rig: readonly GearItem[]): GearItem[] {
     .map(({ item }) => item)
 }
 
-export function gearDisplayName(item: GearItem): string {
+export function gearDisplayName(item: Pick<GearItem, 'brand' | 'model'>): string {
   return `${item.brand} ${item.model}`.trim()
 }

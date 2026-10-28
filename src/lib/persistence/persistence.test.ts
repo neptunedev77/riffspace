@@ -133,7 +133,7 @@ describe('migrações', () => {
   })
 
   it('rejeita uma migração que não avança a versão', () => {
-    expect(() => migrateDocument({ schemaVersion: 1 }, 2, { 1: (doc) => doc })).toThrow(/não produziu a versão 2/)
+    expect(() => migrateDocument({ schemaVersion: 1 }, 2, { 1: (doc) => doc })).toThrow(/did not produce version 2/)
   })
 
   it('não altera documentos já na versão atual', () => {

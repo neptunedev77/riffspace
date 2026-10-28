@@ -26,6 +26,10 @@ export const LIMITS = {
   gearNotes: { max: 300 },
   gearTags: { max: 8 },
   gearTag: { max: 24 },
+  socials: { max: 8 },
+  trackText: { max: 200 },
+  /** Número de barras da forma de onda da música em destaque. */
+  peaks: { min: 16, max: 256 },
 } as const
 
 /** IDs estáveis: minúsculas, dígitos, "-" e "_", a começar por letra ou dígito. */

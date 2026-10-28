@@ -57,6 +57,8 @@ export interface ProfileStoreOptions {
   createDemoProfile: () => Profile
   /** Perfil vazio para "Começar do zero"; recebe o tema atual para o manter. */
   createBlankProfile: (theme: ThemeId) => Profile
+  /** Ajustes ao guardar o perfil demo como perfil do utilizador (p. ex. remover links ilustrativos). */
+  claimDemoProfile?: (profile: Profile) => Profile
   persistent?: boolean
   now?: () => Date
   /** Aviso inicial extra (p. ex. storage indisponível detetado antes de criar a store). */
@@ -120,7 +122,8 @@ export function createProfileStore(options: ProfileStoreOptions) {
         const { draft } = get()
         if (!draft) return { ok: true }
         // Guardar o editor transforma o perfil no perfil do utilizador.
-        const result = commit({ ...draft, isDemo: false })
+        const claimed = draft.isDemo && options.claimDemoProfile ? options.claimDemoProfile(draft) : draft
+        const result = commit({ ...claimed, isDemo: false })
         if (result.ok) set({ draft: null, draftDirty: false })
         return result
       },

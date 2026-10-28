@@ -11,7 +11,7 @@ import { parseProfile, type ValidationIssue } from '../validation/parse.ts'
  * futura migração para backend.
  */
 export const APP_ID = 'riffspace'
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2
 
 export interface StoredDocument {
   app: typeof APP_ID
@@ -27,11 +27,17 @@ export interface StoredDocument {
 export type Migration = (doc: Record<string, unknown>) => Record<string, unknown>
 
 /**
- * Registo de migrações por versão de origem. Vazio enquanto só existir a v1;
- * quando o schema mudar, acrescenta-se `1: (doc) => ({ ...doc, schemaVersion: 2, … })`
- * e sobe-se CURRENT_SCHEMA_VERSION.
+ * Registo de migrações por versão de origem. Para mudar o schema: acrescentar
+ * `N: (doc) => ({ ...doc, schemaVersion: N + 1, … })` e subir CURRENT_SCHEMA_VERSION.
  */
-export const MIGRATIONS: Readonly<Record<number, Migration>> = {}
+export const MIGRATIONS: Readonly<Record<number, Migration>> = {
+  /** v1 → v2: o perfil ganha `socials` (vazio). */
+  1: (doc) => ({
+    ...doc,
+    schemaVersion: 2,
+    profile: isRecord(doc.profile) ? { socials: [], ...doc.profile } : doc.profile,
+  }),
+}
 
 export type DeserializeResult =
   | { status: 'empty' }
@@ -69,10 +75,10 @@ export function migrateDocument(
   let version = current.schemaVersion as number
   while (version < target) {
     const migrate = migrations[version]
-    if (!migrate) throw new Error(`Falta a migração da versão ${version} para ${version + 1}.`)
+    if (!migrate) throw new Error(`Missing migration from version ${version} to ${version + 1}.`)
     current = migrate(current)
     if (current.schemaVersion !== version + 1) {
-      throw new Error(`A migração da versão ${version} não produziu a versão ${version + 1}.`)
+      throw new Error(`Migration from version ${version} did not produce version ${version + 1}.`)
     }
     version += 1
   }
@@ -94,7 +100,7 @@ export function deserializeDocument(raw: string | null, options: DocumentOptions
   try {
     parsed = JSON.parse(raw)
   } catch {
-    return { status: 'invalid', reason: 'json', issues: [{ path: '', message: 'O conteúdo não é JSON válido.' }] }
+    return { status: 'invalid', reason: 'json', issues: [{ path: '', message: 'The content is not valid JSON.' }] }
   }
 
   if (
@@ -107,7 +113,7 @@ export function deserializeDocument(raw: string | null, options: DocumentOptions
     return {
       status: 'invalid',
       reason: 'envelope',
-      issues: [{ path: '', message: 'O documento não é um perfil RIFFSPACE reconhecido.' }],
+      issues: [{ path: '', message: 'The document is not a recognised RIFFSPACE profile.' }],
     }
   }
 
@@ -121,7 +127,7 @@ export function deserializeDocument(raw: string | null, options: DocumentOptions
     return {
       status: 'invalid',
       reason: 'migration',
-      issues: [{ path: '', message: error instanceof Error ? error.message : 'Falha na migração.' }],
+      issues: [{ path: '', message: error instanceof Error ? error.message : 'Migration failed.' }],
     }
   }
 

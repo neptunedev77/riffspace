@@ -1,4 +1,5 @@
 import type { SelectOption } from '../../components/ui/Select.tsx'
+import { intlLocale, translate } from '../../i18n/translate.ts'
 
 /** Países mais comuns na cena metal; lista curta para um select legível. */
 const CODES = [
@@ -6,15 +7,19 @@ const CODES = [
   'SE', 'NO', 'FI', 'DK', 'IS', 'RU', 'UA', 'US', 'CA', 'MX', 'AR', 'CL', 'AU', 'NZ', 'JP',
 ] as const
 
-function regionName(code: string): string {
+/** Opções do select de países, com os nomes no idioma ativo. */
+export function countryOptions(): SelectOption[] {
+  let names: Intl.DisplayNames | null = null
   try {
-    return new Intl.DisplayNames(['pt-PT'], { type: 'region' }).of(code) ?? code
+    names = new Intl.DisplayNames([intlLocale()], { type: 'region' })
   } catch {
-    return code
+    names = null
   }
+  const locale = intlLocale()
+  return [
+    { value: '', label: translate('bands.noCountry') },
+    ...CODES.map((code) => ({ value: code, label: names?.of(code) ?? code })).sort((a, b) =>
+      a.label.localeCompare(b.label, locale),
+    ),
+  ]
 }
-
-export const COUNTRY_OPTIONS: SelectOption[] = [
-  { value: '', label: 'Sem país' },
-  ...CODES.map((code) => ({ value: code, label: regionName(code) })).sort((a, b) => a.label.localeCompare(b.label, 'pt')),
-]

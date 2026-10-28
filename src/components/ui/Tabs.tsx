@@ -19,18 +19,36 @@ interface TabsProps<T extends string> {
   onChange: (id: T) => void
   children: ReactNode
   className?: string
+  /** Vertical: setas para cima/baixo (as horizontais também funcionam). */
+  orientation?: 'horizontal' | 'vertical'
+  /** Classes extra para a lista e o painel, para layouts próprios. */
+  listClassName?: string
+  panelClassName?: string
 }
 
 /** Separadores WAI-ARIA: setas e Home/End mudam de separador; o painel ativo é o único renderizado. */
-export function Tabs<T extends string>({ label, idPrefix, tabs, value, onChange, children, className }: TabsProps<T>) {
+export function Tabs<T extends string>({
+  label,
+  idPrefix,
+  tabs,
+  value,
+  onChange,
+  children,
+  className,
+  orientation = 'horizontal',
+  listClassName,
+  panelClassName,
+}: TabsProps<T>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([])
   const tabId = (id: string) => `${idPrefix}-tab-${id}`
   const panelId = `${idPrefix}-panel`
 
   const onKeyDown = (event: KeyboardEvent, index: number) => {
     let next: number | null = null
-    if (event.key === 'ArrowRight') next = (index + 1) % tabs.length
-    if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length
+    const forward = event.key === 'ArrowRight' || (orientation === 'vertical' && event.key === 'ArrowDown')
+    const backward = event.key === 'ArrowLeft' || (orientation === 'vertical' && event.key === 'ArrowUp')
+    if (forward) next = (index + 1) % tabs.length
+    if (backward) next = (index - 1 + tabs.length) % tabs.length
     if (event.key === 'Home') next = 0
     if (event.key === 'End') next = tabs.length - 1
     if (next === null) return
@@ -41,7 +59,12 @@ export function Tabs<T extends string>({ label, idPrefix, tabs, value, onChange,
 
   return (
     <div className={cx(styles.tabs, className)}>
-      <div role="tablist" aria-label={label} className={styles.list}>
+      <div
+        role="tablist"
+        aria-label={label}
+        aria-orientation={orientation}
+        className={cx(styles.list, orientation === 'vertical' && styles.vertical, listClassName)}
+      >
         {tabs.map((tab, index) => {
           const selected = tab.id === value
           return (
@@ -66,7 +89,7 @@ export function Tabs<T extends string>({ label, idPrefix, tabs, value, onChange,
           )
         })}
       </div>
-      <div id={panelId} role="tabpanel" aria-labelledby={tabId(value)} tabIndex={0} className={styles.panel}>
+      <div id={panelId} role="tabpanel" aria-labelledby={tabId(value)} tabIndex={0} className={cx(styles.panel, panelClassName)}>
         {children}
       </div>
     </div>

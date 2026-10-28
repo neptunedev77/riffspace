@@ -1,0 +1,351 @@
+/*
+ * Card do perfil. A perspetiva vive no .stage; o
+ * .card recebe --rx/--ry/--mx/--my do useTilt. O layout responde à largura do
+ * card (container "card"); em modo .fill ocupa a altura disponível e só o
+ * painel das faces faz scroll.
+ */
+.stage {
+  container: card / inline-size;
+  perspective: 1800px;
+  width: 100%;
+}
+
+.card {
+  --rx: 0deg;
+  --ry: 0deg;
+  --mx: 50%;
+  --my: 0%;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(90% 50% at 0% 0%, var(--accent-soft), transparent 60%),
+    linear-gradient(170deg, var(--surface-solid), var(--bg-raised) 55%, var(--bg));
+  box-shadow:
+    var(--shadow-lg),
+    0 0 100px -50px var(--glow-1);
+  transform: rotateX(var(--rx)) rotateY(var(--ry));
+  transition:
+    transform 600ms var(--ease-out),
+    border-color var(--dur-slow) var(--ease-out);
+  will-change: transform;
+}
+
+.card[data-tilting] {
+  transition-duration: 120ms;
+}
+
+/* Modo ecrã: o card ocupa a altura do contentor. */
+.fill {
+  height: 100%;
+}
+
+.fill .card {
+  height: 100%;
+}
+
+/* Borda iridescente discreta, mais viva quando o ponteiro está no card. */
+.edge {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  padding: 1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from calc(var(--ry) * 20 + 200deg) at var(--mx) var(--my),
+    var(--accent-bright),
+    transparent 25%,
+    var(--art-2) 45%,
+    transparent 65%,
+    var(--accent-bright)
+  );
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0.35;
+  pointer-events: none;
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+
+.glare {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: radial-gradient(600px circle at var(--mx) var(--my), rgb(255 255 255 / 0.06), transparent 45%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+
+.card[data-tilting] .glare {
+  opacity: 1;
+}
+
+.card[data-tilting] .edge {
+  opacity: 0.8;
+}
+
+/* Ações (p. ex. editar) no canto do cabeçalho. */
+.actions {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 4;
+  display: flex;
+  gap: var(--space-1);
+}
+
+/* ── Identidade ─────────────────────────────────────────────────────────── */
+
+.header {
+  position: relative;
+  flex: none;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-6) var(--space-4);
+}
+
+.identityRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.avatar {
+  flex: none;
+  width: 96px;
+  aspect-ratio: 1;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  background: conic-gradient(from 210deg, var(--accent-bright), transparent 35%, var(--border-strong) 60%, var(--accent-bright));
+  box-shadow: 0 12px 40px -14px var(--glow-1);
+}
+
+.avatar svg,
+.avatar img {
+  border-radius: var(--radius-full);
+}
+
+.nameBlock {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.name {
+  max-width: 100%;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 1.1rem + 3.2vw, 3.75rem);
+  font-weight: 900;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.handle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-transform: lowercase;
+}
+
+.location::before {
+  content: '·';
+  margin-right: var(--space-2);
+  color: var(--text-faint);
+}
+
+.tagline {
+  max-width: 60ch;
+  font-size: var(--text-md);
+  line-height: var(--leading-snug);
+  color: var(--text);
+}
+
+
+
+/* ── Faces ──────────────────────────────────────────────────────────────── */
+
+.faces {
+  flex: 1;
+  min-height: 0;
+}
+
+.faceTabs {
+  flex: none;
+  padding: 0 var(--space-5);
+}
+
+/* Prefixo de prompt no separador ativo. */
+.faceTabs [role='tab'][aria-selected='true']::before {
+  content: '>';
+  color: var(--accent-text);
+}
+
+.tabCount {
+  font-size: var(--text-2xs);
+  color: var(--text-faint);
+}
+
+.tabCount::before {
+  content: '[';
+}
+
+.tabCount::after {
+  content: ']';
+}
+
+.facePanel {
+  min-height: 300px;
+  overflow: visible;
+  padding: var(--space-5) var(--space-6);
+}
+
+/* Em modo ecrã é o painel que faz scroll, nunca a página. */
+.fill .facePanel {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.faceContent {
+  animation: face-in var(--dur-slow) var(--ease-out);
+}
+
+@keyframes face-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ── Barra de estado ────────────────────────────────────────────────────── */
+
+.statusBar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-5);
+  padding: var(--space-2) var(--space-5);
+  border-top: 1px solid var(--border);
+  background: rgb(0 0 0 / 0.22);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--text-faint);
+  text-transform: lowercase;
+}
+
+.stats {
+  display: flex;
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.stats div {
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 0.5ch;
+}
+
+.stats dd {
+  margin: 0;
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.themeDot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--accent-bright);
+  box-shadow: 0 0 8px var(--glow-1);
+}
+
+/* ── Card estreito (telemóvel ou pré-visualização) ──────────────────────── */
+
+@container card (max-width: 640px) {
+  .header {
+    padding: var(--space-4) var(--space-4) var(--space-3);
+  }
+
+  .identityRow {
+    gap: var(--space-4);
+  }
+
+  .avatar {
+    width: 72px;
+  }
+
+  .name {
+    font-size: clamp(2rem, 11cqi, 3rem);
+  }
+
+  .tagline {
+    font-size: var(--text-sm);
+  }
+
+
+  .faceTabs {
+    padding: 0 var(--space-2);
+  }
+
+  .facePanel {
+    padding: var(--space-4);
+  }
+
+  .statusBar {
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .meta span:last-child {
+    display: none;
+  }
+}
+
+/* Ecrãs baixos (portáteis): cabeçalho mais compacto para sobrar espaço às faces. */
+@media (max-height: 760px) {
+  .header {
+    padding-block: var(--space-4) var(--space-3);
+  }
+
+  .avatar {
+    width: 72px;
+  }
+
+  .name {
+    font-size: clamp(2rem, 1rem + 2.6vw, 3rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transform: none;
+  }
+
+  .faceContent {
+    animation: none;
+  }
+}

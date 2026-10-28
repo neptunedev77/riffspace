@@ -141,4 +141,4 @@ a {
 .skip-link:focus-visible {
   transform: none;
 }
-#conteudo:focus { outline: none; }
+#content:focus { outline: none; }

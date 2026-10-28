@@ -35,7 +35,7 @@ export function createRng(seed: string | number): Rng {
     range: (min, max) => min + next() * (max - min),
     int: (min, max) => Math.floor(min + next() * (max - min + 1)),
     pick: (items) => {
-      if (items.length === 0) throw new Error('pick() precisa de pelo menos um elemento')
+      if (items.length === 0) throw new Error('pick() needs at least one item')
       return items[Math.floor(next() * items.length)]!
     },
   }

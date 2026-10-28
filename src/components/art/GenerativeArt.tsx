@@ -1,5 +1,5 @@
 import { useId, useMemo } from 'react'
-import { generateCover, generateSigil, type Paint, type Primitive } from '../../lib/art/generate.ts'
+import { generateCover, generateSigil, type CoverPattern, type Paint, type Primitive } from '../../lib/art/generate.ts'
 import { cx } from '../../lib/cx.ts'
 import styles from './GenerativeArt.module.css'
 
@@ -14,6 +14,8 @@ const PAINT: Record<Paint, string> = {
 interface GenerativeArtProps {
   seed: string
   variant?: 'cover' | 'sigil'
+  /** Força um padrão de capa (por omissão é escolhido pela seed). */
+  pattern?: CoverPattern
   /** Sem label a arte é decorativa (aria-hidden). */
   label?: string
   className?: string
@@ -39,10 +41,13 @@ function renderPrimitive(primitive: Primitive, key: number) {
 }
 
 /** Capa ou sigilo abstrato original, gerado a partir de uma seed e tingido pelo tema ativo. */
-export function GenerativeArt({ seed, variant = 'cover', label, className }: GenerativeArtProps) {
+export function GenerativeArt({ seed, variant = 'cover', pattern, label, className }: GenerativeArtProps) {
   // O formato do useId varia entre versões do React; limpa-se para ser seguro em url(#…).
   const gradientId = `art${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
-  const spec = useMemo(() => (variant === 'sigil' ? generateSigil(seed) : generateCover(seed)), [seed, variant])
+  const spec = useMemo(
+    () => (variant === 'sigil' ? generateSigil(seed) : generateCover(seed, pattern)),
+    [seed, variant, pattern],
+  )
 
   return (
     <svg

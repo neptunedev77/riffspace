@@ -1,0 +1,15 @@
+.wave {
+  display: block;
+  width: 100%;
+  height: 24px;
+}
+
+.bar {
+  fill: var(--border-strong);
+  transition: fill var(--dur-slow) var(--ease-out);
+}
+
+.played {
+  fill: var(--accent-bright);
+  transition: fill var(--dur-slow) var(--ease-out);
+}

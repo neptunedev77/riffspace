@@ -1,8 +1,9 @@
-import { TriangleAlert, Info, X } from 'lucide-react'
-import { BACKUP_KEY, type LoadNotice } from '../../lib/persistence/repository.ts'
-import type { SaveStatus } from '../../state/profileStore.ts'
-import { useProfileStore } from '../../state/profileContext.ts'
+import { Info, TriangleAlert, X } from 'lucide-react'
+import { useI18n, type I18nValue } from '../../i18n/context.ts'
 import { cx } from '../../lib/cx.ts'
+import { BACKUP_KEY, type LoadNotice } from '../../lib/persistence/repository.ts'
+import { useProfileStore } from '../../state/profileContext.ts'
+import type { SaveStatus } from '../../state/profileStore.ts'
 import styles from './StorageNotice.module.css'
 
 interface Message {
@@ -11,67 +12,48 @@ interface Message {
   body: string
 }
 
-function backupSentence(saved: boolean): string {
-  return saved
-    ? ` Os dados originais foram copiados para a chave "${BACKUP_KEY}" deste browser.`
-    : ' Não foi possível guardar uma cópia dos dados originais.'
-}
-
-function describeNotice(notice: LoadNotice): Message {
+function describeNotice(notice: LoadNotice, t: I18nValue['t']): Message {
+  const backup = (saved: boolean) => (saved ? t('notice.backupSaved', { key: BACKUP_KEY }) : t('notice.backupFailed'))
   switch (notice.kind) {
     case 'storage-unavailable':
-      return {
-        tone: 'warning',
-        title: 'Armazenamento local indisponível',
-        body: 'Este browser não permite guardar dados (modo privado ou armazenamento bloqueado). As alterações perdem-se ao fechar a página.',
-      }
+      return { tone: 'warning', title: t('notice.unavailable.title'), body: t('notice.unavailable.body') }
     case 'recovered':
       return {
         tone: 'warning',
-        title: 'Não foi possível ler o perfil guardado',
-        body: `Os dados guardados estavam danificados, por isso foi aberto o perfil de demonstração.${backupSentence(notice.backupSaved)}`,
+        title: t('notice.recovered.title'),
+        body: `${t('notice.recovered.body')} ${backup(notice.backupSaved)}`,
       }
     case 'unsupported-version':
       return {
         tone: 'warning',
-        title: 'Perfil criado por uma versão mais recente',
-        body: `Os dados guardados usam o schema v${notice.version}, que esta versão do RIFFSPACE não suporta. Foi aberto o perfil de demonstração.${backupSentence(notice.backupSaved)}`,
+        title: t('notice.newer.title'),
+        body: `${t('notice.newer.body', { version: notice.version })} ${backup(notice.backupSaved)}`,
       }
     case 'migrated':
-      return {
-        tone: 'info',
-        title: 'Perfil atualizado',
-        body: `O perfil guardado foi convertido do schema v${notice.from} para o formato atual.`,
-      }
+      return { tone: 'info', title: t('notice.migrated.title'), body: t('notice.migrated.body', { version: notice.from }) }
     case 'repaired':
-      return {
-        tone: 'info',
-        title: 'Perfil reparado',
-        body: notice.repairs.join(' '),
-      }
+      return { tone: 'info', title: t('notice.repaired.title'), body: notice.repairs.join(' ') }
   }
 }
 
-function saveErrorMessage(status: SaveStatus): Message | null {
+function saveErrorMessage(status: SaveStatus, t: I18nValue['t']): Message | null {
   if (status.state !== 'error') return null
   return {
     tone: 'warning',
-    title: 'Não foi possível guardar',
-    body:
-      status.error === 'quota'
-        ? 'O armazenamento local deste browser está cheio. A última alteração não foi guardada.'
-        : 'O armazenamento local recusou a escrita. A última alteração não foi guardada.',
+    title: t('notice.saveFailed.title'),
+    body: status.error === 'quota' ? t('notice.saveFailed.quota') : t('notice.saveFailed.other'),
   }
 }
 
 /** Aviso sobre o estado do armazenamento local: recuperação, migração ou falhas de escrita. */
 export function StorageNotice() {
+  const { t } = useI18n()
   const notice = useProfileStore((state) => state.notice)
   const saveStatus = useProfileStore((state) => state.saveStatus)
   const dismissNotice = useProfileStore((state) => state.dismissNotice)
 
-  const saveError = saveErrorMessage(saveStatus)
-  const message = saveError ?? (notice ? describeNotice(notice) : null)
+  const saveError = saveErrorMessage(saveStatus, t)
+  const message = saveError ?? (notice ? describeNotice(notice, t) : null)
   if (!message) return null
 
   const Icon = message.tone === 'warning' ? TriangleAlert : Info
@@ -85,7 +67,7 @@ export function StorageNotice() {
           <p className={styles.body}>{message.body}</p>
         </div>
         {!saveError && (
-          <button type="button" className={styles.close} onClick={dismissNotice} aria-label="Fechar aviso">
+          <button type="button" className={styles.close} onClick={dismissNotice} aria-label={t('notice.dismiss')}>
             <X aria-hidden="true" />
           </button>
         )}

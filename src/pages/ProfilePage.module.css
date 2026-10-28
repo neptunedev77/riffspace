@@ -1,0 +1,70 @@
+/* A página tem exatamente a altura do ecrã: o scroll, quando existe, é dentro do card. */
+.page {
+  position: relative;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* Palco fixo atrás do card: feixes de luz e partículas. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.beams {
+  position: absolute;
+  inset: -20% -10% 30%;
+  background:
+    conic-gradient(from 168deg at 28% -5%, transparent 0deg, var(--glow-1) 8deg, transparent 22deg),
+    conic-gradient(from 176deg at 74% -5%, transparent 0deg, var(--glow-2) 10deg, transparent 26deg),
+    conic-gradient(from 186deg at 52% -10%, transparent 0deg, var(--glow-1) 5deg, transparent 14deg);
+  filter: blur(20px);
+  opacity: 0.6;
+}
+
+.main {
+  display: grid;
+  /* Linha com altura definida: o height: 100% do card resolve contra ela. */
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  height: 100%;
+  padding: clamp(var(--space-3), 4vh, var(--space-7)) var(--gutter);
+}
+
+.main:focus {
+  outline: none;
+}
+
+.card {
+  max-width: 880px;
+  max-height: 900px;
+  height: 100%;
+  animation: rise var(--dur-slow) var(--ease-out) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.99);
+  }
+}
+
+@media (max-width: 479px) {
+  .main {
+    padding: var(--space-2);
+  }
+
+  .editLabel {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+  }
+}

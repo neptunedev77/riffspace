@@ -8,11 +8,13 @@ import { LIMITS } from '../../domain/limits.ts'
 import { allBands } from '../../domain/profile.ts'
 import { DEMO_CATALOG } from '../../state/createAppStore.ts'
 import type { TabProps } from '../profile-editor/IdentityTab.tsx'
-import styles from '../profile-editor/ProfileEditor.module.css'
+import styles from '../profile-editor/EditorForms.module.css'
 import { collectSubgenres, normalizeSearch } from './search.ts'
 import { toggleSubgenre } from './selection.ts'
+import { useI18n } from '../../i18n/context.ts'
 
 export function GenresTab({ draft, update }: TabProps) {
+  const { t } = useI18n()
   const [custom, setCustom] = useState('')
   const [error, setError] = useState<string>()
 
@@ -40,20 +42,20 @@ export function GenresTab({ draft, update }: TabProps) {
 
   const addCustom = (event: FormEvent) => {
     event.preventDefault()
-    if (!custom.trim()) return setError('Escreve o nome do subgénero.')
-    if (isSelected(custom)) return setError('Esse subgénero já está escolhido.')
+    if (!custom.trim()) return setError(t('genres.errorEmpty'))
+    if (isSelected(custom)) return setError(t('genres.errorDuplicate'))
     if (toggle(custom)) setCustom('')
   }
 
   return (
     <div className={styles.stack}>
       <p className={styles.note}>
-        Escolhe os subgéneros que definem o teu som:{' '}
+        {t('genres.intro')}{' '}
         <span className={styles.count}>
           {draft.subgenres.length}/{LIMITS.subgenres.max}
         </span>
       </p>
-      <ul className={styles.chips} aria-label="Subgéneros">
+      <ul className={styles.chips} aria-label={t('genres.list')}>
         {options.map((genre) => (
           <li key={genre}>
             <Chip selected={isSelected(genre)} onToggle={() => toggle(genre)}>
@@ -69,14 +71,14 @@ export function GenresTab({ draft, update }: TabProps) {
       )}
       <form className={styles.inlineForm} onSubmit={addCustom} noValidate>
         <Input
-          label="Outro subgénero"
-          placeholder="p. ex. Blackgaze"
+          label={t('genres.other')}
+          placeholder={t('genres.otherPlaceholder')}
           value={custom}
           maxLength={LIMITS.subgenre.max}
           onChange={(event) => setCustom(event.target.value)}
         />
         <Button type="submit" size="md" icon={<Plus />}>
-          Adicionar
+          {t('common.add')}
         </Button>
       </form>
     </div>

@@ -4,8 +4,9 @@ import { Input } from '../../components/ui/Input.tsx'
 import { Select, type SelectOption } from '../../components/ui/Select.tsx'
 import type { Album } from '../../domain/album.ts'
 import { LIMITS, maxYear } from '../../domain/limits.ts'
-import styles from '../profile-editor/ProfileEditor.module.css'
+import styles from '../profile-editor/EditorForms.module.css'
 import type { CustomAlbumInput } from './selection.ts'
+import { useI18n } from '../../i18n/context.ts'
 
 interface CustomAlbumFormProps {
   album?: Album
@@ -21,12 +22,13 @@ export function CustomAlbumForm({ album, bandOptions, initialBandId, onSubmit, o
   const [year, setYear] = useState(album?.year ? String(album.year) : '')
   const [error, setError] = useState<string>()
   const titleId = useId()
+  const { t } = useI18n()
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
     const parsedYear = year.trim() === '' ? undefined : Number(year)
     if (parsedYear !== undefined && !Number.isInteger(parsedYear)) {
-      setError('O ano tem de ser um número inteiro.')
+      setError(t('validation.yearInteger'))
       return
     }
     setError(onSubmit({ bandId, title, year: parsedYear }))
@@ -35,12 +37,12 @@ export function CustomAlbumForm({ album, bandOptions, initialBandId, onSubmit, o
   return (
     <form className={styles.subform} onSubmit={submit} aria-labelledby={titleId} noValidate>
       <h4 id={titleId} className={styles.subformTitle}>
-        {album ? `Editar “${album.title}”` : 'Novo álbum personalizado'}
+        {album ? t('albums.editTitle', { title: album.title }) : t('albums.newTitle')}
       </h4>
-      <Select label="Banda" options={bandOptions} value={bandId} onChange={(event) => setBandId(event.target.value)} />
+      <Select label={t('albums.band')} options={bandOptions} value={bandId} onChange={(event) => setBandId(event.target.value)} />
       <div className={styles.row}>
         <Input
-          label="Título"
+          label={t('albums.title')}
           value={title}
           maxLength={LIMITS.albumTitle.max}
           required
@@ -48,7 +50,7 @@ export function CustomAlbumForm({ album, bandOptions, initialBandId, onSubmit, o
           onChange={(event) => setTitle(event.target.value)}
         />
         <Input
-          label="Ano (opcional)"
+          label={t('albums.year')}
           type="number"
           inputMode="numeric"
           min={LIMITS.year.min}
@@ -64,10 +66,10 @@ export function CustomAlbumForm({ album, bandOptions, initialBandId, onSubmit, o
       )}
       <div className={styles.subformActions}>
         <Button variant="ghost" size="sm" onClick={onCancel}>
-          Cancelar
+          {t('common.cancel')}
         </Button>
         <Button type="submit" variant="primary" size="sm">
-          {album ? 'Guardar álbum' : 'Adicionar álbum'}
+          {album ? t('albums.saveAlbum') : t('albums.addAlbum')}
         </Button>
       </div>
     </form>

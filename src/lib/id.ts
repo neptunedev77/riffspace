@@ -18,11 +18,11 @@ function randomPart(): string {
  */
 export function createId(prefix: string, random: () => string = randomPart): string {
   if (!PREFIX_PATTERN.test(prefix)) {
-    throw new Error(`Prefixo de ID inválido: "${prefix}"`)
+    throw new Error(`Invalid ID prefix: "${prefix}"`)
   }
   const id = `${prefix}-${random().toLowerCase()}`
   if (!isValidId(id)) {
-    throw new Error(`ID gerado inválido: "${id}"`)
+    throw new Error(`Generated ID is invalid: "${id}"`)
   }
   return id
 }

@@ -1,6 +1,7 @@
 import type { Album } from '../../domain/album.ts'
 import type { Band } from '../../domain/band.ts'
 import type { Profile } from '../../domain/profile.ts'
+import { translate } from '../../i18n/translate.ts'
 
 export interface Catalog {
   bands: readonly Band[]
@@ -41,7 +42,7 @@ export function normalizeProfile(input: Profile, catalog: Catalog): NormalizeRes
     (band) => band.id,
   )
   const droppedCustomBands = input.customBands.length - customBandsUnique.items.length
-  if (droppedCustomBands > 0) repairs.push(`${droppedCustomBands} banda(s) personalizada(s) com ID repetido removida(s).`)
+  if (droppedCustomBands > 0) repairs.push(translate('repair.customBands', { count: droppedCustomBands }))
   const customBands = customBandsUnique.items.map((band) => (band.isCustom ? band : { ...band, isCustom: true }))
 
   const bandIds = new Set([...catalogBandIds, ...customBands.map((band) => band.id)])
@@ -53,7 +54,7 @@ export function normalizeProfile(input: Profile, catalog: Catalog): NormalizeRes
     (album) => album.id,
   )
   const droppedCustomAlbums = input.customAlbums.length - customAlbumsUnique.items.length
-  if (droppedCustomAlbums > 0) repairs.push(`${droppedCustomAlbums} álbum(ns) personalizado(s) inválido(s) removido(s).`)
+  if (droppedCustomAlbums > 0) repairs.push(translate('repair.customAlbums', { count: droppedCustomAlbums }))
   const customAlbums = customAlbumsUnique.items
   const albumIds = new Set([...catalogAlbumIds, ...customAlbums.map((album) => album.id)])
 
@@ -62,7 +63,7 @@ export function normalizeProfile(input: Profile, catalog: Catalog): NormalizeRes
     (id) => id,
   ).items
   if (favoriteBands.length !== input.favoriteBandIds.length) {
-    repairs.push('Bandas favoritas repetidas ou inexistentes removidas.')
+    repairs.push(translate('repair.favoriteBands'))
   }
 
   const favoriteAlbums = uniqueBy(
@@ -70,14 +71,17 @@ export function normalizeProfile(input: Profile, catalog: Catalog): NormalizeRes
     (id) => id,
   ).items
   if (favoriteAlbums.length !== input.favoriteAlbumIds.length) {
-    repairs.push('Álbuns favoritos repetidos ou inexistentes removidos.')
+    repairs.push(translate('repair.favoriteAlbums'))
   }
 
   const subgenres = uniqueBy(input.subgenres, (genre) => genre.toLowerCase())
-  if (subgenres.removed > 0) repairs.push('Subgéneros repetidos removidos.')
+  if (subgenres.removed > 0) repairs.push(translate('repair.subgenres'))
 
   const rig = uniqueBy(input.rig, (item) => item.id)
-  if (rig.removed > 0) repairs.push(`${rig.removed} peça(s) da rig com ID repetido removida(s).`)
+  if (rig.removed > 0) repairs.push(translate('repair.rig', { count: rig.removed }))
+
+  const socials = uniqueBy(uniqueBy(input.socials, (link) => link.id).items, (link) => link.url.toLowerCase())
+  if (socials.items.length !== input.socials.length) repairs.push(translate('repair.socials'))
 
   return {
     profile: {
@@ -88,6 +92,7 @@ export function normalizeProfile(input: Profile, catalog: Catalog): NormalizeRes
       favoriteAlbumIds: favoriteAlbums,
       subgenres: subgenres.items,
       rig: rig.items,
+      socials: socials.items,
     },
     repairs,
   }

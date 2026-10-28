@@ -20,6 +20,7 @@ export function createBlankProfile(theme: ThemeId, now: Date = new Date()): Prof
     customBands: [],
     customAlbums: [],
     rig: [],
+    socials: [],
     theme,
     isDemo: false,
     createdAt: timestamp,

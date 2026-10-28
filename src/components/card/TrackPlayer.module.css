@@ -1,0 +1,148 @@
+.player {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: rgb(0 0 0 / 0.18);
+}
+
+.play {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-3);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-med) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.play:hover:not(:disabled) {
+  border-color: var(--accent-bright);
+}
+
+.play:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.play:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.play:focus-visible {
+  border-radius: var(--radius-md);
+}
+
+.artwork {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.55);
+}
+
+.playIcon {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.playIcon svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.body {
+  display: grid;
+  flex: 1;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: lowercase;
+  white-space: nowrap;
+}
+
+.title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.artist {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+}
+
+.waveWrap {
+  position: relative;
+}
+
+/* Range invisível por cima da forma de onda: arrastar/clicar procura; o foco vê-se. */
+.seek {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.seek:disabled {
+  cursor: default;
+}
+
+.waveWrap:has(.seek:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: var(--radius-xs);
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: lowercase;
+  color: var(--text-faint);
+}
+
+.source {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.source:hover {
+  color: var(--accent-text);
+}
+
+.source svg {
+  width: 12px;
+  height: 12px;
+}

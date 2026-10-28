@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useI18n } from '../../i18n/context.ts'
 import { Button } from './Button.tsx'
 import styles from './ConfirmDialog.module.css'
 
@@ -22,10 +23,11 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
-  cancelLabel = 'Cancelar',
+  cancelLabel,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useI18n()
   const ref = useRef<HTMLDialogElement>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
   const titleId = useId()
@@ -68,7 +70,7 @@ export function ConfirmDialog({
         </div>
         <div className={styles.actions}>
           <Button ref={cancelRef} variant="ghost" onClick={onCancel}>
-            {cancelLabel}
+            {cancelLabel ?? t('common.cancel')}
           </Button>
           <Button variant="primary" onClick={onConfirm}>
             {confirmLabel}

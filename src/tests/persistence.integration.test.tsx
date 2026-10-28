@@ -5,18 +5,40 @@ import { createMemoryStorage } from '../lib/persistence/storage.ts'
 import { makeProfile, storageWithProfile, storageWithRaw } from './fixtures.ts'
 import { renderApp } from './renderApp.tsx'
 
+const editorHeader = () => within(screen.getByRole('heading', { level: 1 }).closest('header')!)
+
+function openSection(name: string) {
+  const tablist = screen.getByRole('tablist', { name: 'editor sections' })
+  fireEvent.click(within(tablist).getByRole('tab', { name: new RegExp(`^${name}`) }))
+}
+
 describe('persistência na App', () => {
-  it('o tema escolhido sobrevive a um refresh', () => {
+  it('o tema escolhido no editor sobrevive a um refresh', () => {
     const storage = createMemoryStorage()
-    renderApp(storage)
+    renderApp(storage, '/edit')
+    openSection('appearance')
     fireEvent.click(screen.getByRole('radio', { name: 'Blood Moon' }))
-    expect(screen.getByText(/Guardado apenas neste browser/)).toBeInTheDocument()
+    // Pré-visualização imediata, mas nada guardado até "Guardar".
+    expect(document.documentElement.dataset.theme).toBe('blood-moon')
+    expect(storage.getItem(STORAGE_KEY)).toBeNull()
+    fireEvent.click(editorHeader().getByRole('button', { name: 'save' }))
 
     cleanup()
     document.documentElement.dataset.theme = 'obsidian'
     renderApp(storage)
     expect(document.documentElement.dataset.theme).toBe('blood-moon')
-    expect(screen.getByRole('radio', { name: 'Blood Moon' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('article')).toHaveTextContent('Blood Moon')
+  })
+
+  it('cancelar o editor reverte o tema pré-visualizado', () => {
+    const storage = createMemoryStorage()
+    renderApp(storage, '/edit')
+    openSection('appearance')
+    fireEvent.click(screen.getByRole('radio', { name: 'Frozen Abyss' }))
+    fireEvent.click(editorHeader().getByRole('button', { name: 'cancel' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Discard changes?' })).getByRole('button', { name: 'discard' }))
+    expect(document.documentElement.dataset.theme).toBe('obsidian')
+    expect(storage.getItem(STORAGE_KEY)).toBeNull()
   })
 
   it('mostra o perfil guardado em vez do demo', () => {
@@ -30,11 +52,11 @@ describe('persistência na App', () => {
     renderApp(storage)
     expect(screen.getByRole('heading', { level: 1, name: 'Nocturne' })).toBeInTheDocument()
     const alert = screen.getByRole('alert')
-    expect(alert).toHaveTextContent('Não foi possível ler o perfil guardado')
+    expect(alert).toHaveTextContent('The saved profile could not be read')
     expect(alert).toHaveTextContent(BACKUP_KEY)
     expect(storage.getItem(BACKUP_KEY)).toContain('não é json')
 
-    fireEvent.click(within(alert).getByRole('button', { name: 'Fechar aviso' }))
+    fireEvent.click(within(alert).getByRole('button', { name: 'dismiss notice' }))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -47,40 +69,43 @@ describe('persistência na App', () => {
   })
 })
 
-describe('repor dados de demonstração', () => {
+describe('repor dados de demonstração (secção Dados do editor)', () => {
   it('pede confirmação e cancelar não altera nada', () => {
     const storage = storageWithProfile(makeProfile({ displayName: 'Lâmina' }))
-    renderApp(storage)
+    renderApp(storage, '/edit')
+    openSection('settings')
+    expect(screen.getByText(/Saved in this browser/)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Repor dados de demonstração' }))
-    const dialog = screen.getByRole('dialog', { name: 'Repor dados de demonstração?' })
-    expect(within(dialog).getByRole('button', { name: 'Cancelar' })).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'reset demo data' }))
+    const dialog = screen.getByRole('dialog', { name: 'Reset demo data?' })
+    expect(within(dialog).getByRole('button', { name: 'cancel' })).toHaveFocus()
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'cancel' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1, name: 'Lâmina' })).toBeInTheDocument()
     expect(storage.getItem(STORAGE_KEY)).not.toBeNull()
   })
 
-  it('confirmar apaga os dados guardados e repõe o demo', () => {
+  it('confirmar apaga os dados guardados, repõe o demo e volta ao perfil', () => {
     const storage = storageWithProfile(makeProfile({ displayName: 'Lâmina', theme: 'frozen-abyss' }))
-    renderApp(storage)
+    const { router } = renderApp(storage, '/edit')
+    openSection('settings')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Repor dados de demonstração' }))
+    fireEvent.click(screen.getByRole('button', { name: 'reset demo data' }))
     act(() => {
-      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Repor' }))
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'reset' }))
     })
 
+    expect(router.state.location.pathname).toBe('/')
     expect(screen.getByRole('heading', { level: 1, name: 'Nocturne' })).toBeInTheDocument()
     expect(document.documentElement.dataset.theme).toBe('obsidian')
     expect(storage.getItem(STORAGE_KEY)).toBeNull()
-    expect(screen.getByText(/Sem dados guardados/)).toBeInTheDocument()
   })
 
   it('Esc fecha o diálogo sem repor', () => {
     const storage = storageWithProfile(makeProfile({ displayName: 'Lâmina' }))
-    renderApp(storage)
-    fireEvent.click(screen.getByRole('button', { name: 'Repor dados de demonstração' }))
+    renderApp(storage, '/edit')
+    openSection('settings')
+    fireEvent.click(screen.getByRole('button', { name: 'reset demo data' }))
     fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(storage.getItem(STORAGE_KEY)).not.toBeNull()

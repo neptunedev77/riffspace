@@ -1,3 +1,4 @@
+import { intlLocale } from '../i18n/translate.ts'
 import type { Album } from '../domain/album.ts'
 import type { Band } from '../domain/band.ts'
 
@@ -55,17 +56,18 @@ export const DEMO_ALBUMS: Album[] = [
   { id: 'death-symbolic', bandId: 'death', title: 'Symbolic', year: 1995 },
 ]
 
-let regionNames: Intl.DisplayNames | null | undefined
+const regionNamesByLocale = new Map<string, Intl.DisplayNames | null>()
 
-/** Nome do país em português a partir do código ISO, com fallback para o próprio código. */
+/** Nome do país no idioma ativo a partir do código ISO, com fallback para o próprio código. */
 export function countryName(code: string | undefined): string | undefined {
   if (!code) return undefined
-  if (regionNames === undefined) {
+  const locale = intlLocale()
+  if (!regionNamesByLocale.has(locale)) {
     try {
-      regionNames = new Intl.DisplayNames(['pt-PT'], { type: 'region' })
+      regionNamesByLocale.set(locale, new Intl.DisplayNames([locale], { type: 'region' }))
     } catch {
-      regionNames = null
+      regionNamesByLocale.set(locale, null)
     }
   }
-  return regionNames?.of(code) ?? code
+  return regionNamesByLocale.get(locale)?.of(code) ?? code
 }

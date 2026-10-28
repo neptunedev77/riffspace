@@ -11,8 +11,11 @@
 }
 
 .label {
-  font-size: var(--text-sm);
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  text-transform: lowercase;
+  color: var(--text-muted);
 }
 
 .counter {

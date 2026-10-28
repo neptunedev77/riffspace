@@ -6,6 +6,7 @@ import { createId } from '../../lib/id.ts'
 import type { Catalog } from '../../lib/validation/normalize.ts'
 import { albumSchema, bandSchema, subgenreSchema } from '../../lib/validation/schemas.ts'
 import { normalizeSearch } from './search.ts'
+import { translate } from '../../i18n/translate.ts'
 
 /**
  * Operações puras sobre a seleção musical de um perfil. Nunca alteram o perfil
@@ -29,7 +30,7 @@ function move<T>(items: readonly T[], from: number, to: number): T[] {
 export function addFavoriteBand(profile: Profile, bandId: string): Result<null> {
   if (profile.favoriteBandIds.includes(bandId)) return ok(profile, null)
   if (profile.favoriteBandIds.length >= LIMITS.favoriteBands.max) {
-    return fail(`Já tens ${LIMITS.favoriteBands.max} bandas favoritas. Remove uma para adicionar outra.`)
+    return fail(translate('music.error.maxFavoriteBands', { max: LIMITS.favoriteBands.max }))
   }
   return ok({ ...profile, favoriteBandIds: [...profile.favoriteBandIds, bandId] }, null)
 }
@@ -53,7 +54,7 @@ export function toggleFavoriteAlbum(profile: Profile, albumId: string): Result<b
     return ok({ ...profile, favoriteAlbumIds: profile.favoriteAlbumIds.filter((id) => id !== albumId) }, false)
   }
   if (profile.favoriteAlbumIds.length >= LIMITS.favoriteAlbums.max) {
-    return fail(`Já tens ${LIMITS.favoriteAlbums.max} álbuns favoritos. Remove um para adicionar outro.`)
+    return fail(translate('music.error.maxFavoriteAlbums', { max: LIMITS.favoriteAlbums.max }))
   }
   return ok({ ...profile, favoriteAlbumIds: [...profile.favoriteAlbumIds, albumId] }, true)
 }
@@ -62,14 +63,14 @@ export function toggleFavoriteAlbum(profile: Profile, albumId: string): Result<b
 
 export function toggleSubgenre(profile: Profile, genre: string): Result<boolean> {
   const parsed = subgenreSchema.safeParse(genre)
-  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? 'Subgénero inválido.')
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? translate('music.error.invalidSubgenre'))
   const key = normalizeSearch(parsed.data)
   const existing = profile.subgenres.find((g) => normalizeSearch(g) === key)
   if (existing) {
     return ok({ ...profile, subgenres: profile.subgenres.filter((g) => g !== existing) }, false)
   }
   if (profile.subgenres.length >= LIMITS.subgenres.max) {
-    return fail(`Podes escolher até ${LIMITS.subgenres.max} subgéneros.`)
+    return fail(translate('music.error.maxSubgenres', { max: LIMITS.subgenres.max }))
   }
   return ok({ ...profile, subgenres: [...profile.subgenres, parsed.data] }, true)
 }
@@ -92,7 +93,7 @@ function validateBand(input: CustomBandInput, id: string): { ok: true; band: Ban
     subgenres: input.subgenres,
     isCustom: true,
   })
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Banda inválida.' }
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? translate('music.error.invalidBand') }
   return { ok: true, band: parsed.data }
 }
 
@@ -112,12 +113,12 @@ export function addCustomBand(
   id: string = createId('band'),
 ): Result<Band> {
   if (profile.customBands.length >= LIMITS.customBands.max) {
-    return fail(`Atingiste o limite de ${LIMITS.customBands.max} bandas personalizadas.`)
+    return fail(translate('music.error.maxCustomBands', { max: LIMITS.customBands.max }))
   }
   const validated = validateBand(input, id)
   if (!validated.ok) return validated
   if (nameTaken(allBands(profile, catalog.bands), validated.band.name)) {
-    return fail('Já existe uma banda com esse nome. Procura-a na lista.')
+    return fail(translate('music.error.bandExists'))
   }
   const withBand = { ...profile, customBands: [...profile.customBands, validated.band] }
   const favorites =
@@ -128,11 +129,11 @@ export function addCustomBand(
 }
 
 export function updateCustomBand(profile: Profile, id: string, input: CustomBandInput, catalog: Catalog): Result<Band> {
-  if (!profile.customBands.some((band) => band.id === id)) return fail('Banda personalizada não encontrada.')
+  if (!profile.customBands.some((band) => band.id === id)) return fail(translate('music.error.bandNotFound'))
   const validated = validateBand(input, id)
   if (!validated.ok) return validated
   if (nameTaken(allBands(profile, catalog.bands), validated.band.name, id)) {
-    return fail('Já existe outra banda com esse nome.')
+    return fail(translate('music.error.otherBandExists'))
   }
   return ok(
     { ...profile, customBands: profile.customBands.map((band) => (band.id === id ? validated.band : band)) },
@@ -167,15 +168,15 @@ function validateAlbum(
   catalog: Catalog,
 ): { ok: true; album: Album } | { ok: false; error: string } {
   if (!allBands(profile, catalog.bands).some((band) => band.id === input.bandId)) {
-    return { ok: false, error: 'Escolhe uma banda existente.' }
+    return { ok: false, error: translate('music.error.pickBand') }
   }
   const parsed = albumSchema.safeParse({ id, bandId: input.bandId, title: input.title, year: input.year })
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Álbum inválido.' }
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? translate('music.error.invalidAlbum') }
   const key = normalizeSearch(parsed.data.title)
   const duplicate = allAlbums(profile, catalog.albums).some(
     (album) => album.id !== id && album.bandId === input.bandId && normalizeSearch(album.title) === key,
   )
-  if (duplicate) return { ok: false, error: 'Essa banda já tem um álbum com esse título.' }
+  if (duplicate) return { ok: false, error: translate('music.error.albumExists') }
   return { ok: true, album: parsed.data }
 }
 
@@ -187,7 +188,7 @@ export function addCustomAlbum(
   id: string = createId('album'),
 ): Result<Album> {
   if (profile.customAlbums.length >= LIMITS.customAlbums.max) {
-    return fail(`Atingiste o limite de ${LIMITS.customAlbums.max} álbuns personalizados.`)
+    return fail(translate('music.error.maxCustomAlbums', { max: LIMITS.customAlbums.max }))
   }
   const validated = validateAlbum(profile, input, id, catalog)
   if (!validated.ok) return validated
@@ -200,7 +201,7 @@ export function addCustomAlbum(
 }
 
 export function updateCustomAlbum(profile: Profile, id: string, input: CustomAlbumInput, catalog: Catalog): Result<Album> {
-  if (!profile.customAlbums.some((album) => album.id === id)) return fail('Álbum personalizado não encontrado.')
+  if (!profile.customAlbums.some((album) => album.id === id)) return fail(translate('music.error.albumNotFound'))
   const validated = validateAlbum(profile, input, id, catalog)
   if (!validated.ok) return validated
   return ok(

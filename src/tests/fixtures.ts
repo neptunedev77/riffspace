@@ -18,3 +18,16 @@ export function storageWithProfile(profile: Profile = makeProfile()) {
 export function storageWithRaw(raw: string) {
   return createMemoryStorage({ [STORAGE_KEY]: raw })
 }
+
+/** Resultado bruto da iTunes Search API, como a API o devolve. */
+export const ITUNES_SONG = {
+  kind: 'song',
+  trackId: 213374170,
+  trackName: 'Flying Whales',
+  artistName: 'Gojira',
+  collectionName: 'From Mars to Sirius',
+  artworkUrl100: 'https://is1-ssl.mzstatic.com/image/thumb/x/cover.jpg/100x100bb.jpg',
+  previewUrl: 'https://audio-ssl.itunes.apple.com/itunes-assets/preview.m4a',
+  trackViewUrl: 'https://music.apple.com/us/album/flying-whales/213374112?i=213374170',
+  trackTimeMillis: 464453,
+}
