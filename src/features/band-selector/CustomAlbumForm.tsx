@@ -1,25 +1,21 @@
 import { useId, useState, type FormEvent } from 'react'
 import { Button } from '../../components/ui/Button.tsx'
 import { Input } from '../../components/ui/Input.tsx'
-import { Select, type SelectOption } from '../../components/ui/Select.tsx'
-import type { Album } from '../../domain/album.ts'
 import { LIMITS, maxYear } from '../../domain/limits.ts'
-import styles from '../profile-editor/EditorForms.module.css'
-import type { CustomAlbumInput } from './selection.ts'
 import { useI18n } from '../../i18n/context.ts'
+import styles from '../profile-editor/EditorForms.module.css'
 
 interface CustomAlbumFormProps {
-  album?: Album
-  bandOptions: readonly SelectOption[]
-  initialBandId?: string
-  onSubmit: (input: CustomAlbumInput) => string | undefined
+  bandName: string
+  /** Devolve uma mensagem de erro para mostrar, ou undefined em caso de sucesso. */
+  onSubmit: (input: { title: string; year?: number }) => string | undefined
   onCancel: () => void
 }
 
-export function CustomAlbumForm({ album, bandOptions, initialBandId, onSubmit, onCancel }: CustomAlbumFormProps) {
-  const [bandId, setBandId] = useState(album?.bandId ?? initialBandId ?? bandOptions[0]?.value ?? '')
-  const [title, setTitle] = useState(album?.title ?? '')
-  const [year, setYear] = useState(album?.year ? String(album.year) : '')
+/** Álbum escrito à mão para a banda escolhida, quando a lista da MusicBrainz não o tem. */
+export function CustomAlbumForm({ bandName, onSubmit, onCancel }: CustomAlbumFormProps) {
+  const [title, setTitle] = useState('')
+  const [year, setYear] = useState('')
   const [error, setError] = useState<string>()
   const titleId = useId()
   const { t } = useI18n()
@@ -31,15 +27,14 @@ export function CustomAlbumForm({ album, bandOptions, initialBandId, onSubmit, o
       setError(t('validation.yearInteger'))
       return
     }
-    setError(onSubmit({ bandId, title, year: parsedYear }))
+    setError(onSubmit({ title, year: parsedYear }))
   }
 
   return (
     <form className={styles.subform} onSubmit={submit} aria-labelledby={titleId} noValidate>
       <h4 id={titleId} className={styles.subformTitle}>
-        {album ? t('albums.editTitle', { title: album.title }) : t('albums.newTitle')}
+        {t('albums.newTitle', { name: bandName })}
       </h4>
-      <Select label={t('albums.band')} options={bandOptions} value={bandId} onChange={(event) => setBandId(event.target.value)} />
       <div className={styles.row}>
         <Input
           label={t('albums.title')}
@@ -69,7 +64,7 @@ export function CustomAlbumForm({ album, bandOptions, initialBandId, onSubmit, o
           {t('common.cancel')}
         </Button>
         <Button type="submit" variant="primary" size="sm">
-          {album ? t('albums.saveAlbum') : t('albums.addAlbum')}
+          {t('albums.addAlbum')}
         </Button>
       </div>
     </form>

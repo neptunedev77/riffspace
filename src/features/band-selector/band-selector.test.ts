@@ -1,215 +1,184 @@
 import { describe, expect, it } from 'vitest'
-import { DEMO_ALBUMS, DEMO_BANDS } from '../../data/demo-bands.ts'
+import { COMMON_SUBGENRES } from '../../data/subgenres.ts'
+import type { Album } from '../../domain/album.ts'
+import type { Band } from '../../domain/band.ts'
 import { LIMITS } from '../../domain/limits.ts'
-import { parseProfile } from '../../lib/validation/parse.ts'
 import { makeProfile } from '../../tests/fixtures.ts'
-import { collectSubgenres, normalizeSearch, searchBands } from './search.ts'
+import { matchesSearch, normalizeSearch } from './search.ts'
 import {
+  addBand,
   addCustomAlbum,
   addCustomBand,
-  addFavoriteBand,
-  moveFavoriteBand,
-  removeCustomAlbum,
-  removeCustomBand,
-  removeFavoriteBand,
-  toggleFavoriteAlbum,
+  moveBand,
+  removeAlbum,
+  removeBand,
+  suggestSubgenres,
+  toggleAlbum,
   toggleSubgenre,
-  updateCustomAlbum,
   updateCustomBand,
 } from './selection.ts'
 
-const catalog = { bands: DEMO_BANDS, albums: DEMO_ALBUMS }
-const empty = () => makeProfile({ favoriteBandIds: [], favoriteAlbumIds: [], subgenres: [] })
-const names = (bands: { name: string }[]) => bands.map((b) => b.name)
+const sepultura: Band = {
+  id: 'mb-5d0b6c5e-8a7a-4e5e-9d7f-1a2b3c4d5e6f',
+  name: 'Sepultura',
+  country: 'BR',
+  formedYear: 1984,
+  subgenres: ['Thrash Metal', 'Groove Metal'],
+  source: 'musicbrainz',
+}
 
-describe('searchBands', () => {
-  it('sem pesquisa devolve todo o catálogo pela ordem original', () => {
-    expect(searchBands(DEMO_BANDS, { query: '' })).toEqual(DEMO_BANDS)
-  })
+const arise: Album = {
+  id: 'mb-0e0b6c5e-8a7a-4e5e-9d7f-1a2b3c4d5e6f',
+  bandId: sepultura.id,
+  title: 'Arise',
+  year: 1991,
+  source: 'musicbrainz',
+}
 
-  it('pesquisa por substring sem distinguir maiúsculas nem acentos', () => {
-    expect(names(searchBands(DEMO_BANDS, { query: 'GOJ' }))).toEqual(['Gojira'])
-    expect(names(searchBands(DEMO_BANDS, { query: 'gâtes' }))).toEqual(['At the Gates'])
-  })
+const empty = () => makeProfile({ bands: [], albums: [], subgenres: [] })
 
-  it('ordena primeiro os nomes que começam pela pesquisa', () => {
-    // "e" aparece em várias bandas, mas só "Emperor" (7.ª no catálogo) começa por "e".
-    const result = names(searchBands(DEMO_BANDS, { query: 'e' }))
-    expect(result[0]).toBe('Emperor')
-    expect(result).toContain('Opeth')
-  })
-
-  it('filtra por subgénero', () => {
-    const result = searchBands(DEMO_BANDS, { query: '', subgenre: 'Melodic Death Metal' })
-    expect(names(result)).toEqual(['At the Gates', 'Insomnium'])
-  })
-
-  it('combina pesquisa e subgénero', () => {
-    expect(names(searchBands(DEMO_BANDS, { query: 'ins', subgenre: 'Melodic Death Metal' }))).toEqual(['Insomnium'])
-    expect(searchBands(DEMO_BANDS, { query: 'gojira', subgenre: 'Black Metal' })).toEqual([])
-  })
-
-  it('sem correspondências devolve lista vazia', () => {
-    expect(searchBands(DEMO_BANDS, { query: 'zzzz' })).toEqual([])
-  })
-
-  it('normalizeSearch remove acentos, espaços e maiúsculas', () => {
-    expect(normalizeSearch('  Ëmpéror ')).toBe('emperor')
-  })
-
-  it('collectSubgenres junta, remove repetidos e ordena', () => {
-    expect(collectSubgenres(['Doom', 'Black'], ['doom', 'Ambient'])).toEqual(['Ambient', 'Black', 'Doom'])
+describe('pesquisa', () => {
+  it('ignora acentos, maiúsculas e espaços', () => {
+    expect(normalizeSearch('  Ångström Métal ')).toBe('angstrom metal')
+    expect(matchesSearch('Século X.X.', 'seculo')).toBe(true)
+    expect(matchesSearch('Roots', '')).toBe(true)
+    expect(matchesSearch('Roots', 'arise')).toBe(false)
   })
 })
 
-describe('bandas favoritas', () => {
-  it('adiciona no fim e ignora repetidos', () => {
-    const first = addFavoriteBand(empty(), 'opeth')
-    expect(first.ok && first.profile.favoriteBandIds).toEqual(['opeth'])
-    const again = first.ok ? addFavoriteBand(first.profile, 'opeth') : first
-    expect(again.ok && again.profile.favoriteBandIds).toEqual(['opeth'])
+describe('bandas', () => {
+  it('adiciona ao fim do ranking e não duplica', () => {
+    const first = addBand(empty(), sepultura)
+    expect(first.ok && first.profile.bands).toEqual([sepultura])
+    const again = first.ok ? addBand(first.profile, sepultura) : first
+    expect(again.ok && again.profile.bands).toHaveLength(1)
   })
 
-  it('respeita o limite de favoritas', () => {
-    const full = makeProfile({ favoriteBandIds: Array.from({ length: LIMITS.favoriteBands.max }, (_, i) => `b${i}`) })
-    const result = addFavoriteBand(full, 'opeth')
+  it('respeita o limite de bandas', () => {
+    const full = makeProfile({
+      bands: Array.from({ length: LIMITS.favoriteBands.max }, (_, i) => ({ ...sepultura, id: `b${i}` })),
+      albums: [],
+    })
+    expect(addBand(full, sepultura)).toEqual({ ok: false, error: `You can pick up to ${LIMITS.favoriteBands.max} favourite bands.` })
+  })
+
+  it('valida a banda vinda da API antes de a aceitar', () => {
+    const result = addBand(empty(), { ...sepultura, id: 'Inválido' })
     expect(result.ok).toBe(false)
   })
 
-  it('remove sem alterar a ordem das restantes', () => {
-    const profile = makeProfile({ favoriteBandIds: ['a', 'b', 'c'] })
-    expect(removeFavoriteBand(profile, 'b').favoriteBandIds).toEqual(['a', 'c'])
-    expect(profile.favoriteBandIds).toEqual(['a', 'b', 'c'])
+  it('remover uma banda remove também os seus álbuns', () => {
+    const profile = makeProfile()
+    const gojira = profile.bands[0]!
+    const next = removeBand(profile, gojira.id)
+    expect(next.bands.some((band) => band.id === gojira.id)).toBe(false)
+    expect(next.albums.some((album) => album.bandId === gojira.id)).toBe(false)
+    expect(next.albums).toHaveLength(profile.albums.length - 1)
   })
 
-  it('move para cima e para baixo e ignora movimentos fora dos limites', () => {
-    const profile = makeProfile({ favoriteBandIds: ['a', 'b', 'c'] })
-    expect(moveFavoriteBand(profile, 'c', -1).favoriteBandIds).toEqual(['a', 'c', 'b'])
-    expect(moveFavoriteBand(profile, 'a', 1).favoriteBandIds).toEqual(['b', 'a', 'c'])
-    expect(moveFavoriteBand(profile, 'a', -1)).toBe(profile)
-    expect(moveFavoriteBand(profile, 'c', 1)).toBe(profile)
-    expect(moveFavoriteBand(profile, 'x', 1)).toBe(profile)
-  })
-})
-
-describe('álbuns favoritos e subgéneros', () => {
-  it('toggleFavoriteAlbum alterna e respeita o limite', () => {
-    const on = toggleFavoriteAlbum(empty(), 'opeth-blackwater-park')
-    expect(on.ok && on.value).toBe(true)
-    const off = on.ok ? toggleFavoriteAlbum(on.profile, 'opeth-blackwater-park') : on
-    expect(off.ok && off.profile.favoriteAlbumIds).toEqual([])
-
-    const full = makeProfile({ favoriteAlbumIds: Array.from({ length: LIMITS.favoriteAlbums.max }, (_, i) => `a${i}`) })
-    expect(toggleFavoriteAlbum(full, 'novo').ok).toBe(false)
-  })
-
-  it('toggleSubgenre compara sem maiúsculas, valida e respeita o limite', () => {
-    const on = toggleSubgenre(empty(), '  Doom Metal ')
-    expect(on.ok && on.profile.subgenres).toEqual(['Doom Metal'])
-    const off = on.ok ? toggleSubgenre(on.profile, 'doom metal') : on
-    expect(off.ok && off.profile.subgenres).toEqual([])
-    expect(toggleSubgenre(empty(), '   ').ok).toBe(false)
-    expect(toggleSubgenre(empty(), 'x'.repeat(LIMITS.subgenre.max + 1)).ok).toBe(false)
-    const full = makeProfile({ subgenres: Array.from({ length: LIMITS.subgenres.max }, (_, i) => `G${i}`) })
-    expect(toggleSubgenre(full, 'Novo').ok).toBe(false)
+  it('move no ranking e ignora movimentos fora dos limites', () => {
+    const profile = makeProfile()
+    const [gojira, opeth] = profile.bands
+    expect(moveBand(profile, opeth!.id, -1).bands.slice(0, 2)).toEqual([opeth, gojira])
+    expect(moveBand(profile, gojira!.id, -1)).toBe(profile)
   })
 })
 
-describe('bandas personalizadas', () => {
-  it('cria, valida e junta às favoritas', () => {
-    const result = addCustomBand(empty(), { name: ' Garagem Negra ', country: 'pt', formedYear: 2019, subgenres: ['Doom Metal'] }, catalog, 'band-1')
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.value).toEqual({
-      id: 'band-1',
+describe('bandas criadas à mão', () => {
+  it('cria com origem custom e recusa nomes que já estão no perfil', () => {
+    const created = addCustomBand(empty(), { name: '  Garagem Negra ', country: 'pt', formedYear: 2019 }, 'band-garagem')
+    expect(created.ok && created.value).toEqual({
+      id: 'band-garagem',
       name: 'Garagem Negra',
       country: 'PT',
       formedYear: 2019,
-      subgenres: ['Doom Metal'],
-      isCustom: true,
+      subgenres: [],
+      source: 'custom',
     })
-    expect(result.profile.favoriteBandIds).toEqual(['band-1'])
-    expect(parseProfile(result.profile).ok).toBe(true)
+    const profile = makeProfile()
+    expect(addCustomBand(profile, { name: 'GOJIRA' })).toEqual({ ok: false, error: 'A band with that name already exists.' })
+    expect(addCustomBand(profile, { name: '' }).ok).toBe(false)
   })
 
-  it('gera um ID válido por omissão', () => {
-    const result = addCustomBand(empty(), { name: 'Nova', subgenres: [] }, catalog)
-    expect(result.ok && result.value.id).toMatch(/^band-/)
-  })
-
-  it('rejeita nomes vazios, demasiado longos ou já existentes', () => {
-    expect(addCustomBand(empty(), { name: '  ', subgenres: [] }, catalog)).toMatchObject({ ok: false })
-    expect(addCustomBand(empty(), { name: 'x'.repeat(LIMITS.bandName.max + 1), subgenres: [] }, catalog).ok).toBe(false)
-    const dup = addCustomBand(empty(), { name: 'gojira', subgenres: [] }, catalog)
-    expect(dup).toEqual({ ok: false, error: 'A band with that name already exists.' })
-  })
-
-  it('rejeita anos e países inválidos', () => {
-    expect(addCustomBand(empty(), { name: 'A', formedYear: 1800, subgenres: [] }, catalog).ok).toBe(false)
-    expect(addCustomBand(empty(), { name: 'A', country: 'Portugal', subgenres: [] }, catalog).ok).toBe(false)
-  })
-
-  it('não junta às favoritas quando estão cheias, mas cria a banda', () => {
-    const full = makeProfile({ favoriteBandIds: DEMO_BANDS.slice(0, 11).map((b) => b.id) })
-    const profile = { ...full, favoriteBandIds: [...full.favoriteBandIds, ...Array.from({ length: 9 }, (_, i) => `x${i}`)] }
-    const result = addCustomBand(profile, { name: 'Sem Lugar', subgenres: [] }, catalog, 'band-x')
-    expect(result.ok && result.profile.customBands.map((b) => b.id)).toEqual(['band-x'])
-    expect(result.ok && result.profile.favoriteBandIds.includes('band-x')).toBe(false)
-  })
-
-  it('edita mantendo o ID e recusa nomes de outras bandas', () => {
-    const created = addCustomBand(empty(), { name: 'Antiga', subgenres: [] }, catalog, 'band-1')
-    if (!created.ok) throw new Error('setup')
-    const edited = updateCustomBand(created.profile, 'band-1', { name: 'Renomeada', subgenres: ['Djent'] }, catalog)
-    expect(edited.ok && edited.profile.customBands).toEqual([
-      { id: 'band-1', name: 'Renomeada', subgenres: ['Djent'], isCustom: true },
-    ])
-    // Mudar só detalhes, mantendo o próprio nome, é permitido.
-    expect(updateCustomBand(created.profile, 'band-1', { name: 'Antiga', subgenres: [] }, catalog).ok).toBe(true)
-    expect(updateCustomBand(created.profile, 'band-1', { name: 'Opeth', subgenres: [] }, catalog).ok).toBe(false)
-    expect(updateCustomBand(created.profile, 'nao-existe', { name: 'X', subgenres: [] }, catalog).ok).toBe(false)
-  })
-
-  it('apagar remove a banda, os seus álbuns e as referências nos favoritos', () => {
-    const band = addCustomBand(empty(), { name: 'Efémera', subgenres: [] }, catalog, 'band-1')
-    if (!band.ok) throw new Error('setup')
-    const album = addCustomAlbum(band.profile, { bandId: 'band-1', title: 'Demo' }, catalog, 'album-1')
-    if (!album.ok) throw new Error('setup')
-    expect(album.profile.favoriteAlbumIds).toEqual(['album-1'])
-
-    const removed = removeCustomBand(album.profile, 'band-1')
-    expect(removed.customBands).toEqual([])
-    expect(removed.customAlbums).toEqual([])
-    expect(removed.favoriteBandIds).toEqual([])
-    expect(removed.favoriteAlbumIds).toEqual([])
+  it('só bandas custom são editáveis', () => {
+    const created = addCustomBand(empty(), { name: 'Garagem' }, 'band-garagem')
+    if (!created.ok) throw new Error(created.error)
+    const updated = updateCustomBand(created.profile, 'band-garagem', { name: 'Garagem Branca' })
+    expect(updated.ok && updated.value.name).toBe('Garagem Branca')
+    const profile = makeProfile()
+    expect(updateCustomBand(profile, profile.bands[0]!.id, { name: 'X' })).toEqual({ ok: false, error: 'Band not found.' })
   })
 })
 
-describe('álbuns personalizados', () => {
-  it('cria para bandas do catálogo e marca como favorito', () => {
-    const result = addCustomAlbum(empty(), { bandId: 'gojira', title: 'Terra Incognita', year: 2001 }, catalog, 'album-1')
-    expect(result.ok && result.value).toEqual({ id: 'album-1', bandId: 'gojira', title: 'Terra Incognita', year: 2001 })
-    expect(result.ok && result.profile.favoriteAlbumIds).toEqual(['album-1'])
+describe('álbuns', () => {
+  const withSepultura = () => {
+    const result = addBand(empty(), sepultura)
+    if (!result.ok) throw new Error(result.error)
+    return result.profile
+  }
+
+  it('alterna um álbum de uma banda do perfil', () => {
+    const added = toggleAlbum(withSepultura(), arise)
+    expect(added.ok && added.value).toBe(true)
+    expect(added.ok && added.profile.albums).toEqual([arise])
+    const removed = added.ok ? toggleAlbum(added.profile, arise) : added
+    expect(removed.ok && removed.profile.albums).toEqual([])
   })
 
-  it('rejeita bandas inexistentes, títulos vazios e duplicados na mesma banda', () => {
-    expect(addCustomAlbum(empty(), { bandId: 'fantasma', title: 'X' }, catalog).ok).toBe(false)
-    expect(addCustomAlbum(empty(), { bandId: 'gojira', title: '  ' }, catalog).ok).toBe(false)
-    expect(addCustomAlbum(empty(), { bandId: 'gojira', title: 'magma' }, catalog)).toEqual({
+  it('recusa álbuns de bandas que não estão no perfil', () => {
+    expect(toggleAlbum(empty(), arise)).toEqual({ ok: false, error: 'Pick a band.' })
+  })
+
+  it('respeita o limite de álbuns', () => {
+    const profile = withSepultura()
+    const full = {
+      ...profile,
+      albums: Array.from({ length: LIMITS.favoriteAlbums.max }, (_, i) => ({ ...arise, id: `a${i}` })),
+    }
+    expect(toggleAlbum(full, { ...arise, id: 'outro' }).ok).toBe(false)
+  })
+
+  it('cria álbuns à mão e recusa títulos repetidos na mesma banda', () => {
+    const profile = withSepultura()
+    const created = addCustomAlbum(profile, { bandId: sepultura.id, title: 'Demo 1984', year: 1984 }, 'album-demo')
+    expect(created.ok && created.value).toEqual({
+      id: 'album-demo',
+      bandId: sepultura.id,
+      title: 'Demo 1984',
+      year: 1984,
+      source: 'custom',
+    })
+    const withArise = toggleAlbum(profile, arise)
+    if (!withArise.ok) throw new Error(withArise.error)
+    expect(addCustomAlbum(withArise.profile, { bandId: sepultura.id, title: 'ARISE' })).toEqual({
       ok: false,
       error: 'That band already has an album with that title.',
     })
-    // O mesmo título noutra banda é permitido.
-    expect(addCustomAlbum(empty(), { bandId: 'opeth', title: 'Magma' }, catalog).ok).toBe(true)
+    expect(addCustomAlbum(profile, { bandId: 'fantasma', title: 'X' }).ok).toBe(false)
   })
 
-  it('edita e apaga', () => {
-    const created = addCustomAlbum(empty(), { bandId: 'gojira', title: 'Terra Incognita' }, catalog, 'album-1')
-    if (!created.ok) throw new Error('setup')
-    const edited = updateCustomAlbum(created.profile, 'album-1', { bandId: 'gojira', title: 'Terra Incognita', year: 2001 }, catalog)
-    expect(edited.ok && edited.profile.customAlbums[0]?.year).toBe(2001)
-    const removed = removeCustomAlbum(created.profile, 'album-1')
-    expect(removed.customAlbums).toEqual([])
-    expect(removed.favoriteAlbumIds).toEqual([])
+  it('removeAlbum tira só esse álbum', () => {
+    const profile = makeProfile()
+    const first = profile.albums[0]!
+    expect(removeAlbum(profile, first.id).albums).toEqual(profile.albums.slice(1))
+  })
+})
+
+describe('subgéneros', () => {
+  it('alterna sem distinguir maiúsculas e respeita o limite', () => {
+    const added = toggleSubgenre(empty(), 'Doom Metal')
+    if (!added.ok) throw new Error(added.error)
+    const removed = toggleSubgenre(added.profile, 'doom metal')
+    expect(removed.ok && removed.profile.subgenres).toEqual([])
+    const full = makeProfile({ subgenres: Array.from({ length: LIMITS.subgenres.max }, (_, i) => `G${i}`) })
+    expect(toggleSubgenre(full, 'Outro')).toEqual({ ok: false, error: `You can pick up to ${LIMITS.subgenres.max} subgenres.` })
+  })
+
+  it('sugere primeiro os géneros mais comuns entre as bandas do perfil, sem o genérico "Metal"', () => {
+    const suggestions = suggestSubgenres(makeProfile(), COMMON_SUBGENRES)
+    expect(suggestions[0]).toBe('Progressive Metal')
+    expect(suggestions).not.toContain('Metal')
+    expect(new Set(suggestions.map(normalizeSearch)).size).toBe(suggestions.length)
+    expect(suggestSubgenres(empty(), COMMON_SUBGENRES)).toEqual([...COMMON_SUBGENRES])
   })
 })

@@ -14,8 +14,6 @@ export const LIMITS = {
   subgenres: { max: 8 },
   favoriteBands: { max: 20 },
   favoriteAlbums: { max: 24 },
-  customBands: { max: 50 },
-  customAlbums: { max: 100 },
   bandName: { max: 60 },
   albumTitle: { max: 80 },
   year: { min: 1950 },
@@ -28,6 +26,9 @@ export const LIMITS = {
   gearTag: { max: 24 },
   socials: { max: 8 },
   trackText: { max: 200 },
+  /** Nome de ficheiro da Commons e textos de atribuição (autor, licença). */
+  imageFile: { max: 240 },
+  imageCredit: { max: 200 },
   /** Número de barras da forma de onda da música em destaque. */
   peaks: { min: 16, max: 256 },
 } as const

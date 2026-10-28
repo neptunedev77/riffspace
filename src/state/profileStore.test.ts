@@ -37,12 +37,13 @@ describe('profileStore', () => {
     const result = store.getState().updateProfile((profile) => ({
       ...profile,
       tagline: '  Nova tagline  ',
-      favoriteBandIds: ['opeth', 'opeth'],
+      bands: [profile.bands[1]!, profile.bands[1]!],
+      albums: [],
     }))
     expect(result).toEqual({ ok: true })
     const profile = store.getState().profile
     expect(profile.tagline).toBe('Nova tagline')
-    expect(profile.favoriteBandIds).toEqual(['opeth'])
+    expect(profile.bands.map((band) => band.name)).toEqual(['Opeth'])
     expect(profile.updatedAt).not.toBe(before)
   })
 
@@ -167,7 +168,7 @@ describe('profileStore — rascunho do editor', () => {
     store.getState().setTheme('frozen-abyss')
     store.getState().startEditing('blank')
     const draft = store.getState().draft!
-    expect(draft).toMatchObject({ nickname: '', favoriteBandIds: [], rig: [], isDemo: false, theme: 'frozen-abyss' })
+    expect(draft).toMatchObject({ nickname: '', bands: [], albums: [], rig: [], isDemo: false, theme: 'frozen-abyss' })
     expect(draft.id).not.toBe(store.getState().profile.id)
     expect(store.getState().draftDirty).toBe(true)
   })

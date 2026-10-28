@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { DEMO_ALBUMS, DEMO_BANDS } from '../data/demo-bands.ts'
 import { DEMO_PROFILE } from '../data/demo-profile.ts'
 import { buildSignalChain, type GearItem } from './gear.ts'
-import { resolveByIds } from './profile.ts'
+import { albumCoverUrl } from './album.ts'
+import { mbidOf, musicBrainzEntityId } from './band.ts'
+import { findBand } from './profile.ts'
 import { getThemeMeta, isThemeId, THEME_IDS } from './theme.ts'
 
 const gear = (id: string, type: GearItem['type']): GearItem => ({ id, type, brand: 'B', model: id, tags: [] })
@@ -31,10 +32,20 @@ describe('buildSignalChain', () => {
   })
 })
 
-describe('resolveByIds', () => {
-  it('preserva a ordem dos IDs e ignora IDs desconhecidos', () => {
-    const items = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
-    expect(resolveByIds(['c', 'x', 'a'], items)).toEqual([{ id: 'c' }, { id: 'a' }])
+describe('IDs da MusicBrainz', () => {
+  const mbid = '1c5efd53-d6b6-4d63-9d22-a15025cf5f07'
+
+  it('mbidOf só devolve o MBID de entidades da MusicBrainz com um UUID válido', () => {
+    expect(mbidOf({ id: musicBrainzEntityId(mbid), source: 'musicbrainz' })).toBe(mbid)
+    expect(mbidOf({ id: musicBrainzEntityId(mbid), source: 'custom' })).toBeUndefined()
+    expect(mbidOf({ id: 'mb-not-a-uuid', source: 'musicbrainz' })).toBeUndefined()
+  })
+
+  it('a capa é derivada do MBID (nunca de um URL guardado) e só existe para a MusicBrainz', () => {
+    const album = { id: musicBrainzEntityId(mbid), bandId: 'x', title: 'T', source: 'musicbrainz' as const }
+    expect(albumCoverUrl(album)).toBe(`https://coverartarchive.org/release-group/${mbid}/front-250`)
+    expect(albumCoverUrl(album, 500)).toMatch(/front-500$/)
+    expect(albumCoverUrl({ ...album, source: 'custom' })).toBeUndefined()
   })
 })
 
@@ -51,16 +62,15 @@ describe('tema', () => {
 })
 
 describe('dados de demonstração', () => {
-  it('todas as referências do perfil demo existem no catálogo', () => {
-    expect(resolveByIds(DEMO_PROFILE.favoriteBandIds, DEMO_BANDS)).toHaveLength(DEMO_PROFILE.favoriteBandIds.length)
-    expect(resolveByIds(DEMO_PROFILE.favoriteAlbumIds, DEMO_ALBUMS)).toHaveLength(DEMO_PROFILE.favoriteAlbumIds.length)
+  it('as bandas e os álbuns do demo vêm da MusicBrainz e cada álbum pertence a uma banda do perfil', () => {
+    const { bands, albums } = DEMO_PROFILE
+    expect(bands.every((band) => band.source === 'musicbrainz' && mbidOf(band))).toBe(true)
+    expect(albums.every((album) => findBand(DEMO_PROFILE, album.bandId) && mbidOf(album))).toBe(true)
   })
 
-  it('todos os álbuns apontam para bandas existentes e os IDs são únicos', () => {
-    const bandIds = new Set(DEMO_BANDS.map((band) => band.id))
-    expect(DEMO_ALBUMS.every((album) => bandIds.has(album.bandId))).toBe(true)
-    expect(new Set(DEMO_ALBUMS.map((album) => album.id)).size).toBe(DEMO_ALBUMS.length)
-    expect(bandIds.size).toBe(DEMO_BANDS.length)
+  it('os IDs são únicos', () => {
+    expect(new Set(DEMO_PROFILE.bands.map((band) => band.id)).size).toBe(DEMO_PROFILE.bands.length)
+    expect(new Set(DEMO_PROFILE.albums.map((album) => album.id)).size).toBe(DEMO_PROFILE.albums.length)
     expect(new Set(DEMO_PROFILE.rig.map((item) => item.id)).size).toBe(DEMO_PROFILE.rig.length)
   })
 

@@ -1,0 +1,15 @@
+/* A arte gerada fica por baixo: aparece enquanto a capa carrega e quando não há capa. */
+.cover {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 1;
+}
+
+.image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

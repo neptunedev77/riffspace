@@ -2,7 +2,6 @@ import { createStore } from 'zustand/vanilla'
 import type { Profile } from '../domain/profile.ts'
 import type { ThemeId } from '../domain/theme.ts'
 import type { LoadNotice, ProfileRepository } from '../lib/persistence/repository.ts'
-import type { Catalog } from '../lib/validation/normalize.ts'
 import { normalizeProfile } from '../lib/validation/normalize.ts'
 import { parseProfile, type ValidationIssue } from '../lib/validation/parse.ts'
 
@@ -53,7 +52,6 @@ export interface ProfileState {
 
 export interface ProfileStoreOptions {
   repository: ProfileRepository
-  catalog: Catalog
   createDemoProfile: () => Profile
   /** Perfil vazio para "Começar do zero"; recebe o tema atual para o manter. */
   createBlankProfile: (theme: ThemeId) => Profile
@@ -84,7 +82,7 @@ export function createProfileStore(options: ProfileStoreOptions) {
     const commit = (candidate: Profile): UpdateResult => {
       const parsed = parseProfile({ ...candidate, updatedAt: now().toISOString() })
       if (!parsed.ok) return { ok: false, issues: parsed.issues }
-      persist(normalizeProfile(parsed.value, options.catalog).profile)
+      persist(normalizeProfile(parsed.value).profile)
       return { ok: true }
     }
 

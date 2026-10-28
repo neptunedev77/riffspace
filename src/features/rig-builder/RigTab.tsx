@@ -1,25 +1,37 @@
-import { ArrowDown, ArrowUp, Pencil, Plus, Star, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowDown, ArrowUp, Pencil, Star, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { GearImage } from '../../components/rig/GearImage.tsx'
 import { Button } from '../../components/ui/Button.tsx'
 import { gearDisplayName, gearTypeLabel, type GearItem } from '../../domain/gear.ts'
 import { LIMITS } from '../../domain/limits.ts'
 import type { TabProps } from '../profile-editor/IdentityTab.tsx'
 import styles from '../profile-editor/EditorForms.module.css'
-import { useFocusOnClose } from '../profile-editor/useFocusOnClose.ts'
-import { GearForm } from './GearForm.tsx'
+import { GearForm, QuickGearForm } from './GearForm.tsx'
 import { addGear, groupRig, moveGear, removeGear, rigGroup, rigGroupLabel, updateGear } from './rig.ts'
 import { useI18n } from '../../i18n/context.ts'
 
-type FormState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; item: GearItem }
-
+/**
+ * Rig: adicionar é uma linha (tipo, marca, modelo); a lista mostra a cadeia
+ * por estágios e cada peça edita-se no sítio, com os extras em "mais detalhes".
+ */
 export function RigTab({ draft, update }: TabProps) {
   const { t } = useI18n()
-  const [form, setForm] = useState<FormState>({ mode: 'closed' })
+  const [editingId, setEditingId] = useState<string>()
+  const lastEditedId = useRef<string>(undefined)
+
+  // Ao fechar a edição inline, o foco volta ao botão "edit" dessa peça (o formulário desaparece).
+  useEffect(() => {
+    if (editingId) {
+      lastEditedId.current = editingId
+      return
+    }
+    const id = lastEditedId.current
+    lastEditedId.current = undefined
+    if (id) document.querySelector<HTMLButtonElement>(`[data-edit-gear="${id}"]`)?.focus()
+  }, [editingId])
   const [feedback, setFeedback] = useState('')
   const groups = groupRig(draft.rig)
   const full = draft.rig.length >= LIMITS.rig.max
-  const addRef = useFocusOnClose(form.mode !== 'closed')
 
   const move = (item: GearItem, delta: -1 | 1) => {
     const next = moveGear(draft, item.id, delta)
@@ -35,48 +47,29 @@ export function RigTab({ draft, update }: TabProps) {
         {feedback}
       </p>
 
-      <div className={styles.blockHeader}>
-        <p className={styles.note}>
-          {t('rig.count')}{' '}
-          <span className={styles.count}>
-            {draft.rig.length}/{LIMITS.rig.max}
-          </span>
-        </p>
-        {form.mode === 'closed' && (
-          <Button ref={addRef} size="sm" icon={<Plus />} disabled={full} onClick={() => setForm({ mode: 'create' })}>
-            {t('rig.addGear')}
-          </Button>
-        )}
-      </div>
-      <p className={styles.note}>{t('rig.intro')}</p>
-      {full && form.mode === 'closed' && (
-        <p className={styles.formError}>{t('rig.full', { max: LIMITS.rig.max })}</p>
-      )}
+      <QuickGearForm
+        disabled={full}
+        onSubmit={(input) => {
+          const result = addGear(draft, input)
+          if (!result.ok) return result.error
+          update(() => result.profile)
+          setFeedback(
+            t('rig.added', { name: gearDisplayName(result.value), group: rigGroupLabel(rigGroup(result.value)) }),
+          )
+          return undefined
+        }}
+      />
+      {full && <p className={styles.formError}>{t('rig.full', { max: LIMITS.rig.max })}</p>}
 
-      {form.mode !== 'closed' && (
-        <GearForm
-          key={form.mode === 'edit' ? form.item.id : 'new'}
-          item={form.mode === 'edit' ? form.item : undefined}
-          onCancel={() => setForm({ mode: 'closed' })}
-          onSubmit={(input) => {
-            const result = form.mode === 'edit' ? updateGear(draft, form.item.id, input) : addGear(draft, input)
-            if (!result.ok) return result.error
-            update(() => result.profile)
-            setForm({ mode: 'closed' })
-            setFeedback(
-              form.mode === 'edit'
-                ? t('rig.updated', { name: gearDisplayName(result.value) })
-                : t('rig.added', { name: gearDisplayName(result.value), group: rigGroupLabel(rigGroup(result.value)) }),
-            )
-            return undefined
-          }}
-        />
-      )}
+      <p className={styles.note}>
+        {t('rig.intro')}{' '}
+        <span className={styles.count}>
+          {draft.rig.length}/{LIMITS.rig.max}
+        </span>
+      </p>
 
       {groups.length === 0 ? (
-        form.mode === 'closed' && (
-          <p className={styles.empty}>{t('rig.empty')}</p>
-        )
+        <p className={styles.empty}>{t('rig.empty')}</p>
       ) : (
         groups.map(({ group, items }) => (
           <section key={group} className={styles.block} aria-labelledby={`rig-group-${group}`}>
@@ -86,6 +79,24 @@ export function RigTab({ draft, update }: TabProps) {
             <ol className={styles.rankList}>
               {items.map((item, index) => {
                 const name = gearDisplayName(item)
+                if (item.id === editingId) {
+                  return (
+                    <li key={item.id}>
+                      <GearForm
+                        item={item}
+                        onCancel={() => setEditingId(undefined)}
+                        onSubmit={(input) => {
+                          const result = updateGear(draft, item.id, input)
+                          if (!result.ok) return result.error
+                          update(() => result.profile)
+                          setEditingId(undefined)
+                          setFeedback(t('rig.updated', { name: gearDisplayName(result.value) }))
+                          return undefined
+                        }}
+                      />
+                    </li>
+                  )
+                }
                 return (
                   <li key={item.id} className={styles.gearItem}>
                     <GearImage item={item} size={40} />
@@ -119,8 +130,9 @@ export function RigTab({ draft, update }: TabProps) {
                         size="sm"
                         variant="ghost"
                         icon={<Pencil />}
+                        data-edit-gear={item.id}
                         aria-label={t('common.editItem', { name })}
-                        onClick={() => setForm({ mode: 'edit', item })}
+                        onClick={() => setEditingId(item.id)}
                       />
                       <Button
                         size="sm"
@@ -129,7 +141,6 @@ export function RigTab({ draft, update }: TabProps) {
                         aria-label={t('common.removeItem', { name })}
                         onClick={() => {
                           update((d) => removeGear(d, item.id))
-                          if (form.mode === 'edit' && form.item.id === item.id) setForm({ mode: 'closed' })
                           setFeedback(t('rig.removed', { name }))
                         }}
                       />

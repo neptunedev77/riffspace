@@ -11,6 +11,8 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <ProfilePage /> },
       { path: 'edit', element: <EditorPage /> },
+      // Perfil público: `/@nickname` (o "@" faz parte do segmento; a página valida-o).
+      { path: ':handle', element: <ProfilePage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

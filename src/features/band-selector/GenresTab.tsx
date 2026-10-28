@@ -3,30 +3,26 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { Button } from '../../components/ui/Button.tsx'
 import { Chip } from '../../components/ui/Chip.tsx'
 import { Input } from '../../components/ui/Input.tsx'
-import { DEMO_SUBGENRES } from '../../data/demo-bands.ts'
+import { COMMON_SUBGENRES } from '../../data/subgenres.ts'
 import { LIMITS } from '../../domain/limits.ts'
-import { allBands } from '../../domain/profile.ts'
-import { DEMO_CATALOG } from '../../state/createAppStore.ts'
 import type { TabProps } from '../profile-editor/IdentityTab.tsx'
 import styles from '../profile-editor/EditorForms.module.css'
-import { collectSubgenres, normalizeSearch } from './search.ts'
-import { toggleSubgenre } from './selection.ts'
+import { normalizeSearch } from './search.ts'
+import { suggestSubgenres, toggleSubgenre } from './selection.ts'
 import { useI18n } from '../../i18n/context.ts'
 
+/** Subgéneros do perfil: sugeridos a partir dos géneros das bandas escolhidas, ou escritos à mão. */
 export function GenresTab({ draft, update }: TabProps) {
   const { t } = useI18n()
   const [custom, setCustom] = useState('')
   const [error, setError] = useState<string>()
 
-  const options = useMemo(
-    () =>
-      collectSubgenres(
-        DEMO_SUBGENRES,
-        draft.subgenres,
-        ...allBands(draft, DEMO_CATALOG.bands).map((band) => band.subgenres),
-      ),
-    [draft],
-  )
+  // Sugestões das bandas e comuns, seguidas dos escolhidos que não são sugestão (ordem estável ao alternar).
+  const options = useMemo(() => {
+    const suggestions = suggestSubgenres(draft, COMMON_SUBGENRES)
+    const suggested = new Set(suggestions.map(normalizeSearch))
+    return [...suggestions, ...draft.subgenres.filter((genre) => !suggested.has(normalizeSearch(genre)))]
+  }, [draft])
   const isSelected = (genre: string) => draft.subgenres.some((g) => normalizeSearch(g) === normalizeSearch(genre))
 
   const toggle = (genre: string): boolean => {

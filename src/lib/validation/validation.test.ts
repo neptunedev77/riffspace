@@ -1,13 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { DEMO_ALBUMS, DEMO_BANDS } from '../../data/demo-bands.ts'
 import { DEMO_PROFILE } from '../../data/demo-profile.ts'
 import { LIMITS } from '../../domain/limits.ts'
 import { makeProfile } from '../../tests/fixtures.ts'
 import { normalizeProfile } from './normalize.ts'
 import { parseProfile, validateField } from './parse.ts'
 import { bioSchema, httpUrlSchema, nicknameSchema, taglineSchema } from './schemas.ts'
-
-const catalog = { bands: DEMO_BANDS, albums: DEMO_ALBUMS }
 
 function issuesFor(input: unknown) {
   const result = parseProfile(input)
@@ -71,7 +68,7 @@ describe('parseProfile', () => {
   it('rejeita IDs inválidos', () => {
     const profile = makeProfile()
     expect(issuesFor({ ...profile, id: 'Com Espaços' })[0]?.path).toBe('id')
-    expect(issuesFor({ ...profile, favoriteBandIds: ['<script>'] })[0]?.path).toBe('favoriteBandIds.0')
+    expect(issuesFor({ ...profile, bands: [{ ...profile.bands[0]!, id: '<script>' }] })[0]?.path).toBe('bands.0.id')
   })
 
   it('valida avatares por URL apenas com http(s)', () => {
@@ -87,11 +84,29 @@ describe('parseProfile', () => {
   })
 
   it('valida anos de formação', () => {
-    const band = { id: 'nova', name: 'Nova', subgenres: [], isCustom: true }
-    expect(parseProfile(makeProfile({ customBands: [{ ...band, formedYear: 1990 }] })).ok).toBe(true)
-    expect(parseProfile(makeProfile({ customBands: [{ ...band, formedYear: 1800 }] })).ok).toBe(false)
-    expect(parseProfile(makeProfile({ customBands: [{ ...band, formedYear: 3000 }] })).ok).toBe(false)
-    expect(parseProfile(makeProfile({ customBands: [{ ...band, formedYear: 1999.5 }] })).ok).toBe(false)
+    const band = { id: 'nova', name: 'Nova', subgenres: [], source: 'custom' as const }
+    expect(parseProfile(makeProfile({ bands: [{ ...band, formedYear: 1990 }], albums: [] })).ok).toBe(true)
+    expect(parseProfile(makeProfile({ bands: [{ ...band, formedYear: 1800 }], albums: [] })).ok).toBe(false)
+    expect(parseProfile(makeProfile({ bands: [{ ...band, formedYear: 3000 }], albums: [] })).ok).toBe(false)
+    expect(parseProfile(makeProfile({ bands: [{ ...band, formedYear: 1999.5 }], albums: [] })).ok).toBe(false)
+  })
+
+  it('a fotografia da banda é só um nome de ficheiro da Commons (nunca um URL) com créditos opcionais', () => {
+    const profile = makeProfile()
+    const withImage = (image: unknown) => ({ ...profile, bands: [{ ...profile.bands[0]!, image }, ...profile.bands.slice(1)] })
+    expect(parseProfile(withImage({ file: 'Gojira live 2016.jpg', author: 'X', license: 'CC BY-SA 4.0' })).ok).toBe(true)
+    expect(parseProfile(withImage({ file: 'Logo.svg' })).ok).toBe(true)
+    expect(issuesFor(withImage({ file: 'https://evil.example/a.jpg' }))[0]?.path).toBe('bands.0.image.file')
+    expect(issuesFor(withImage({ file: 'sem extensão' }))[0]?.path).toBe('bands.0.image.file')
+    expect(issuesFor(withImage({ file: 'a<script>.jpg' }))[0]?.path).toBe('bands.0.image.file')
+    expect(issuesFor(withImage({ file: 'a.jpg', author: 'x'.repeat(LIMITS.imageCredit.max + 1) }))[0]?.path).toBe('bands.0.image.author')
+  })
+
+  it('só aceita as origens musicbrainz e custom e limita o número de bandas', () => {
+    const profile = makeProfile()
+    expect(issuesFor({ ...profile, bands: [{ ...profile.bands[0]!, source: 'spotify' }] })[0]?.path).toBe('bands.0.source')
+    const many = Array.from({ length: LIMITS.favoriteBands.max + 1 }, (_, i) => ({ ...profile.bands[0]!, id: `b${i}` }))
+    expect(issuesFor({ ...profile, bands: many, albums: [] })[0]?.path).toBe('bands')
   })
 })
 
@@ -120,100 +135,49 @@ describe('validação de campos', () => {
 
 describe('normalizeProfile', () => {
   it('não altera um perfil consistente', () => {
-    const { profile, repairs } = normalizeProfile(makeProfile(), catalog)
+    const { profile, repairs } = normalizeProfile(makeProfile())
     expect(repairs).toEqual([])
     expect(profile).toEqual(makeProfile())
   })
 
-  it('remove favoritos repetidos e inexistentes mantendo a ordem', () => {
-    const { profile, repairs } = normalizeProfile(
-      makeProfile({ favoriteBandIds: ['opeth', 'nao-existe', 'gojira', 'opeth'] }),
-      catalog,
-    )
-    expect(profile.favoriteBandIds).toEqual(['opeth', 'gojira'])
+  it('remove bandas repetidas mantendo a ordem do ranking', () => {
+    const [gojira, opeth] = makeProfile().bands
+    const { profile, repairs } = normalizeProfile(makeProfile({ bands: [opeth!, gojira!, opeth!], albums: [] }))
+    expect(profile.bands).toEqual([opeth, gojira])
     expect(repairs.length).toBeGreaterThan(0)
   })
 
-  it('aceita favoritos de bandas e álbuns personalizados', () => {
-    const { profile } = normalizeProfile(
-      makeProfile({
-        customBands: [{ id: 'a-minha-banda', name: 'A Minha Banda', subgenres: [], isCustom: true }],
-        customAlbums: [{ id: 'demo-tape', bandId: 'a-minha-banda', title: 'Demo Tape' }],
-        favoriteBandIds: ['a-minha-banda'],
-        favoriteAlbumIds: ['demo-tape'],
-      }),
-      catalog,
-    )
-    expect(profile.favoriteBandIds).toEqual(['a-minha-banda'])
-    expect(profile.favoriteAlbumIds).toEqual(['demo-tape'])
+  it('aceita bandas e álbuns criados à mão', () => {
+    const band = { id: 'a-minha-banda', name: 'A Minha Banda', subgenres: [], source: 'custom' as const }
+    const album = { id: 'demo-tape', bandId: band.id, title: 'Demo Tape', source: 'custom' as const }
+    const { profile, repairs } = normalizeProfile(makeProfile({ bands: [band], albums: [album] }))
+    expect(repairs).toEqual([])
+    expect(profile.albums).toEqual([album])
   })
 
-  it('remove bandas personalizadas que colidem com o catálogo e força isCustom', () => {
-    const { profile } = normalizeProfile(
-      makeProfile({
-        customBands: [
-          { id: 'gojira', name: 'Impostor', subgenres: [], isCustom: true },
-          { id: 'local', name: 'Local', subgenres: [], isCustom: false },
-        ],
-      }),
-      catalog,
-    )
-    expect(profile.customBands).toEqual([{ id: 'local', name: 'Local', subgenres: [], isCustom: true }])
-  })
-
-  it('remove álbuns personalizados de bandas inexistentes', () => {
-    const { profile } = normalizeProfile(
-      makeProfile({ customAlbums: [{ id: 'orfao', bandId: 'fantasma', title: 'Órfão' }] }),
-      catalog,
-    )
-    expect(profile.customAlbums).toEqual([])
+  it('remove álbuns de bandas que não estão no perfil e álbuns repetidos', () => {
+    const base = makeProfile()
+    const orphan = { id: 'orfao', bandId: 'fantasma', title: 'Órfão', source: 'custom' as const }
+    const { profile, repairs } = normalizeProfile({ ...base, albums: [...base.albums, orphan, base.albums[0]!] })
+    expect(profile.albums).toEqual(base.albums)
+    expect(repairs).toHaveLength(1)
   })
 
   it('remove peças da rig e subgéneros repetidos', () => {
     const base = makeProfile()
-    const { profile } = normalizeProfile(
-      { ...base, rig: [...base.rig, base.rig[0]!], subgenres: ['Doom Metal', 'doom metal', 'Djent'] },
-      catalog,
-    )
+    const { profile } = normalizeProfile({
+      ...base,
+      rig: [...base.rig, base.rig[0]!],
+      subgenres: ['Doom Metal', 'doom metal', 'Djent'],
+    })
     expect(profile.rig).toHaveLength(base.rig.length)
     expect(profile.subgenres).toEqual(['Doom Metal', 'Djent'])
   })
 
   it('não altera o objeto recebido', () => {
-    const input = makeProfile({ favoriteBandIds: ['opeth', 'opeth'] })
-    normalizeProfile(input, catalog)
-    expect(input.favoriteBandIds).toEqual(['opeth', 'opeth'])
-  })
-})
-
-describe('featuredTrack', () => {
-  const track = DEMO_PROFILE.featuredTrack!
-  const withTrack = (overrides: Record<string, unknown>) =>
-    issuesFor(makeProfile({ featuredTrack: { ...track, ...overrides } as typeof track }))
-
-  it('é opcional e a música do demo é válida', () => {
-    expect(issuesFor(makeProfile({ featuredTrack: undefined }))).toEqual([])
-    expect(issuesFor(makeProfile())).toEqual([])
-  })
-
-  it('só aceita URLs https dos domínios oficiais da Apple', () => {
-    expect(withTrack({ previewUrl: 'https://example.com/a.m4a' }).map((i) => i.path)).toContain('featuredTrack.previewUrl')
-    expect(withTrack({ previewUrl: track.previewUrl.replace('https:', 'http:') })).not.toEqual([])
-    expect(withTrack({ artworkUrl: 'https://evil.example/cover.jpg' })).not.toEqual([])
-    expect(withTrack({ trackUrl: 'javascript:alert(1)' })).not.toEqual([])
-    expect(withTrack({ previewUrl: 'https://example.com/a.m4a' })[0]?.message).toMatch(/official Apple links/)
-  })
-
-  it('valida os picos: entre 0 e 1 e dentro dos limites de barras', () => {
-    expect(withTrack({ peaks: [...track.peaks.slice(1), 1.2] })).not.toEqual([])
-    expect(withTrack({ peaks: [...track.peaks.slice(1), -0.1] })).not.toEqual([])
-    expect(withTrack({ peaks: track.peaks.slice(0, LIMITS.peaks.min - 1) })).not.toEqual([])
-    expect(withTrack({ peaks: Array.from({ length: LIMITS.peaks.max + 1 }, () => 0.5) })).not.toEqual([])
-  })
-
-  it('exige título e artista e só aceita a fonte itunes', () => {
-    expect(withTrack({ title: '  ' }).map((i) => i.path)).toContain('featuredTrack.title')
-    expect(withTrack({ artist: '' }).map((i) => i.path)).toContain('featuredTrack.artist')
-    expect(withTrack({ source: 'spotify' })).not.toEqual([])
+    const opeth = makeProfile().bands[1]!
+    const input = makeProfile({ bands: [opeth, opeth], albums: [] })
+    normalizeProfile(input)
+    expect(input.bands).toHaveLength(2)
   })
 })

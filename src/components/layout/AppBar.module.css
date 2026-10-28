@@ -1,0 +1,10 @@
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 880px;
+  min-height: 36px;
+  margin-inline: auto;
+}

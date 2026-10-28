@@ -8,18 +8,22 @@ typeface.
 
 > **Status:** early development. The profile card, the dedicated editor
 > (identity, appearance, featured track, socials, music, rig and settings),
-> English/Portuguese interface and local persistence work end to end; the
-> public view and JSON export/import are next.
+> English/Portuguese interface, band and album search on MusicBrainz and local
+> persistence work end to end. Accounts, a database with unique nicknames and
+> real public profiles (Supabase) are next.
 
 ## Features
 
-- **Profile card** — the home page is the profile itself and fits the screen:
-  the page never scrolls, only the card's content area does. Lowercase mono
-  labels, a status bar with stats, theme and serial number, a subtle 3D tilt
-  and sheen that follow the pointer, and three faces:
-  - _identity_ — bio, subgenres and highlights (top band, favourite album,
-    featured gear) that jump to the other faces;
-  - _music_ — ranked favourite bands and an album shelf;
+- **Profile card** — the profile as any visitor sees it, at `/` and
+  `/@nickname`. It fits the screen: the page never scrolls, only the card's
+  content area does. The design is deliberately sober: a solid card with no
+  tilt or glare, and no editing controls — a slim bar above it only holds the
+  owner's _customise_ link. Lowercase mono labels, a footer with the counts
+  and the member-since date, and three faces:
+  - _identity_ — bio, subgenres and highlights (top band, favourite album with
+    its band and year, featured gear) that jump to the other faces;
+  - _music_ — ranked favourite bands with photos and an album shelf with real
+    covers; long lists show the first 10 bands (9 albums) and a _show all_ button;
   - _rig_ — the interactive signal chain (guitar → pedals → amp → cabinet) with
     gear details. It is a visual representation only; it does not validate
     electrical or audio compatibility.
@@ -45,21 +49,31 @@ typeface.
   platform's domain, and links open in a new tab with `noopener noreferrer`.
   Icons are deliberately generic (no brand logos) and always paired with the
   platform name.
-- **Musical identity** — accent- and case-insensitive search over the local
-  catalogue with a subgenre filter; ranked favourites with accessible move
-  controls; favourite albums and subgenres; custom bands and albums for anything
-  the catalogue does not have.
-- **Rig builder** — add, edit, remove and reorder gear of any type with brand,
-  model, nickname, notes, tags, favourite flag and an optional image URL.
+- **Musical identity from MusicBrainz** — band search starts empty and only
+  queries MusicBrainz once you type two letters (with a short pause, so typing
+  does not flood the API); partial words work (`slipk` finds Slipknot). Only
+  official results are shown: tributes and cover bands are dropped, and among
+  namesakes only the act with a Wikidata entry is kept — searching `slipknot`
+  returns just the band. Results show a photo, country, formation year and genres.
+  Albums are picked only from the bands on your profile: choose a band and its
+  studio albums appear (no singles, live albums or compilations), eight at a
+  time with a title filter. Genre suggestions come from your bands' genres.
+  Anything MusicBrainz does not have — or everything, if it is unreachable —
+  can be added manually.
+- **Rig builder** — adding gear is one row: type (icon chips), brand, model,
+  _add_. The row clears itself so pieces can be chained quickly. Each item is
+  edited in place, with nickname, notes, tags and image under _more details_.
   Ordering happens within each chain stage, so every move shows in the chain.
 - **Three themes** — _Obsidian_, _Blood Moon_ and _Frozen Abyss_ change colours,
   surfaces, glows, generated artwork and the ambient particles (embers rise,
   ice falls). The theme is chosen in the editor's _appearance_ section, previewed
   live and saved with the rest of the profile.
-- **Original generative artwork** — covers, band art, the card banner and the
-  avatar sigil are deterministic SVGs. No third-party logos, photos or covers
-  (the featured track's cover is the only exception, served by Apple — see
-  _Content and licensing_).
+- **Artwork** — band photos come from Wikimedia Commons (found through
+  Wikidata, freely licensed, with author and licence credited on the card),
+  album covers from the Cover Art Archive and the featured track's cover from
+  Apple; all are loaded from their servers. The avatar sigil and the fallback
+  for anything without an image are original, deterministic SVGs. No band
+  logos are used.
 - **Local persistence** — versioned, validated and migrated. Corrupted or
   incompatible data never blocks start-up.
 - **Accessible and responsive** — semantic landmarks, WAI-ARIA tabs, keyboard
@@ -83,13 +97,16 @@ typeface.
 | Persistence   | `localStorage` with a versioned document envelope         |
 | i18n          | Small typed dictionaries (en, pt) with interpolation and plurals — no library |
 | Music data    | iTunes Search API (public, no key) and the Web Audio API for the waveform |
+| Band & album data | MusicBrainz API (open data, CC0, no key), Cover Art Archive, Wikidata (official-act check) and Wikimedia Commons (band photos) |
 | Testing       | Vitest, Testing Library, jsdom                            |
 | Linting       | oxlint                                                    |
 
-No external accounts or API keys are required. The only network service is
-the optional featured-track search (iTunes Search API); everything else works
-offline, and if the catalogue cannot be reached the editor says so and leaves
-the profile unchanged.
+No external accounts or API keys are required. Public services used from the
+browser: MusicBrainz (bands, albums; covers via the Cover Art Archive),
+Wikidata and Wikimedia Commons (official-act check and band photos) and the
+iTunes Search API (featured track). The profile itself works offline;
+when a service cannot be reached the editor says so, changes nothing, and
+offers manual entry where it makes sense.
 
 ## Getting started
 
@@ -124,12 +141,13 @@ The dev server runs at <http://localhost:5173>.
 
 | Path      | Page                                             |
 | --------- | ------------------------------------------------ |
-| `/`       | Profile card                                     |
-| `/edit`   | Profile editor with live preview                 |
-| `*`       | Not found page with a link back to the profile   |
+| `/`          | Profile card (the profile stored in this browser)        |
+| `/@nickname` | Public view of a profile; for now only this browser's profile exists, any other nickname says so honestly |
+| `/edit`      | Profile editor with live preview                          |
+| `*`          | Not found page with a link back to the profile            |
 
 The app uses browser history routing. Any static host must serve `index.html`
-for unknown paths (SPA fallback) so that `/edit` works on reload.
+for unknown paths (SPA fallback) so that `/edit` and `/@nickname` work on reload.
 
 ## Project structure
 
@@ -140,11 +158,11 @@ src/
   components/
     art/          Generative SVG artwork, the waveform and the ambient particle canvas
     card/         ProfileCard, its faces, track player, social links and the tilt hook
-    layout/       Storage notices
+    layout/       App bar and storage notices
     profile/      Avatar with image fallback
     rig/          Gear icon and image with placeholder
     ui/           Primitives (Button, LinkButton, Chip, Badge, Input, Tabs, ConfirmDialog, …)
-  data/           Local demo catalogue, rig and profile; blank profile factory
+  data/           Demo profile and rig, common subgenres, blank profile factory
   domain/         Types and pure logic (profile, band, album, gear, social, track, theme)
   features/
     appearance/      Theme picker (editor section)
@@ -157,6 +175,8 @@ src/
   i18n/           Locales, en/pt dictionaries, translate helpers and the provider
   lib/
     art/          Deterministic generative artwork (seeded PRNG)
+    music/        MusicBrainz client (request queue at ≤1 req/s, cache, retry on 503),
+                  Wikidata/Commons lookups and the "official results" filter
     persistence/  Storage adapter, versioned document, migrations, repository, settings
     track/        iTunes Search client and waveform peak extraction
     validation/   Zod schemas, parsing and invariant normalisation
@@ -187,22 +207,25 @@ defined once in `src/domain/limits.ts` and enforced by the Zod schemas in
 The profile is saved under the `riffspace:state` key as a versioned envelope:
 
 ```json
-{ "app": "riffspace", "schemaVersion": 2, "savedAt": "2026-10-23T12:00:00.000Z", "profile": { "…": "…" } }
+{ "app": "riffspace", "schemaVersion": 3, "savedAt": "2026-10-23T12:00:00.000Z", "profile": { "…": "…" } }
 ```
 
 | Version | Change                                   |
 | ------- | ---------------------------------------- |
 | 1       | Initial schema                           |
 | 2       | Adds `socials` (migrated as an empty list) |
+| 3       | Bands and albums live in the profile (`bands`, `albums`) instead of IDs into a local catalogue; v2 catalogue IDs are resolved and kept as `custom` entries |
 
 ### Invariants
 
 - All IDs are lowercase slugs (`[a-z0-9][a-z0-9_-]*`, max 64 chars); rig item IDs are unique.
 - Text fields are trimmed and length-limited (e.g. nickname 3–24, tagline 120, bio 500).
 - Nicknames use lowercase letters, digits, `.`, `_` and `-`, and cannot start or end with a separator.
-- Favourite bands and albums contain no duplicates and only reference existing
-  catalogue or custom entries; list order is the user's ranking.
-- Custom albums always belong to an existing band; custom bands never reuse a catalogue ID.
+- `bands` has no duplicate IDs and its order is the user's ranking; every
+  album in `albums` belongs to a band in `bands` (removing a band removes its albums).
+- Entries from MusicBrainz use `mb-<mbid>` IDs and `source: "musicbrainz"`;
+  manual entries use generated IDs and `source: "custom"`. Cover URLs are never
+  stored — they are derived from the MBID.
 - Image and avatar URLs must use `http:` or `https:`.
 - Social links are `http(s)`, belong to their platform's domain (subdomains
   included) and are unique by URL.
@@ -269,15 +292,20 @@ same way and ships with precomputed peaks.
 - The demo profile belongs to a fictional persona and is always labelled as a
   demonstration in the UI. Its social links are illustrative and are rendered
   as non-clickable labels.
-- Band, album and gear names appear as plain text references only.
-- All imagery is abstract artwork generated locally at runtime; social icons
-  are generic glyphs, not brand logos.
+- Band, album and gear names appear as plain text references.
+- **MusicBrainz attribution:** band and album data come from MusicBrainz
+  (open data, CC0); album covers are served by the Cover Art Archive. Both are
+  credited in the editor.
+- **Band photos** come from Wikimedia Commons under free licences (CC BY,
+  CC BY-SA, …). The author and licence are stored with each band and listed
+  under _photo credits_ on the card, linking to the file page. A photo without
+  author or licence information is not used.
+- The avatar and fallback art are abstract artwork generated locally; social
+  icons are generic glyphs, not brand logos. No band logos are shown.
 - **Apple / iTunes attribution:** featured-track search results, 30-second
   previews and cover art are provided by Apple through the iTunes Search API
   and are streamed from Apple's servers. Every player links back to the
   track on Apple Music. RIFFSPACE is not affiliated with or endorsed by Apple.
-- The bundled catalogue is a small demo sample and is not intended to be
-  complete.
 
 ## Current limitations
 
@@ -288,16 +316,25 @@ same way and ships with precomputed peaks.
   one at a time, with a toggle.
 - On very short screens the card keeps its header and status bar visible and
   gives the remaining height to the scrollable faces.
-- Data is stored only in the current browser. Nothing is published online;
-  there is no backend and no public profile URL.
+- Data is stored only in the current browser. Nothing is published online
+  yet: `/@nickname` only shows this browser's profile. Accounts, a database
+  with unique nicknames and real public profiles are the next stage.
+- The "official" filter is a heuristic (Wikidata entry, search relevance,
+  tribute/cover keywords): a genuine but undocumented band only appears once
+  its name is typed (almost) exactly, and can always be added manually.
+- MusicBrainz allows about one request per second; searches are debounced and
+  queued, so a burst of activity can feel slower. Genres come from community
+  tags and can be imprecise. Bands with more than 100 album entries may show an
+  incomplete discography.
 - Only the most recent unreadable document is kept as a backup.
 - Featured-track search and previews need a network connection and depend on
   Apple's public API, which has no service guarantee or published rate limit.
-- On very short phone screens (around 320×568) the track player leaves little
-  room for the card's faces; a compact player is planned.
+- On very short phone screens (around 320×568) the app bar and the track
+  player leave little room for the card's faces; a compact layout is planned.
 
 ## Roadmap
 
-- Public view and validated JSON export/import
+- Accounts (Google or email link) and a Supabase database: one unique
+  `@nickname` per user, public profiles at `/@nickname` and profile search
 - Visual polish, motion and an accessibility audit
 - CI pipeline and deployment configuration (including the SPA fallback)

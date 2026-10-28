@@ -1,42 +1,21 @@
 /*
- * Card do perfil. A perspetiva vive no .stage; o
- * .card recebe --rx/--ry/--mx/--my do useTilt. O layout responde à largura do
- * card (container "card"); em modo .fill ocupa a altura disponível e só o
- * painel das faces faz scroll.
+ * Card do perfil. O layout responde à largura do card (container "card"); em
+ * modo .fill ocupa a altura disponível e só o painel das faces faz scroll.
  */
 .stage {
   container: card / inline-size;
-  perspective: 1800px;
   width: 100%;
 }
 
 .card {
-  --rx: 0deg;
-  --ry: 0deg;
-  --mx: 50%;
-  --my: 0%;
   position: relative;
-  isolation: isolate;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  background:
-    radial-gradient(90% 50% at 0% 0%, var(--accent-soft), transparent 60%),
-    linear-gradient(170deg, var(--surface-solid), var(--bg-raised) 55%, var(--bg));
-  box-shadow:
-    var(--shadow-lg),
-    0 0 100px -50px var(--glow-1);
-  transform: rotateX(var(--rx)) rotateY(var(--ry));
-  transition:
-    transform 600ms var(--ease-out),
-    border-color var(--dur-slow) var(--ease-out);
-  will-change: transform;
-}
-
-.card[data-tilting] {
-  transition-duration: 120ms;
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-md);
 }
 
 /* Modo ecrã: o card ocupa a altura do contentor. */
@@ -46,58 +25,6 @@
 
 .fill .card {
   height: 100%;
-}
-
-/* Borda iridescente discreta, mais viva quando o ponteiro está no card. */
-.edge {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  padding: 1px;
-  border-radius: inherit;
-  background: conic-gradient(
-    from calc(var(--ry) * 20 + 200deg) at var(--mx) var(--my),
-    var(--accent-bright),
-    transparent 25%,
-    var(--art-2) 45%,
-    transparent 65%,
-    var(--accent-bright)
-  );
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  opacity: 0.35;
-  pointer-events: none;
-  transition: opacity var(--dur-slow) var(--ease-out);
-}
-
-.glare {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  background: radial-gradient(600px circle at var(--mx) var(--my), rgb(255 255 255 / 0.06), transparent 45%);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur-slow) var(--ease-out);
-}
-
-.card[data-tilting] .glare {
-  opacity: 1;
-}
-
-.card[data-tilting] .edge {
-  opacity: 0.8;
-}
-
-/* Ações (p. ex. editar) no canto do cabeçalho. */
-.actions {
-  position: absolute;
-  top: var(--space-3);
-  right: var(--space-3);
-  z-index: 4;
-  display: flex;
-  gap: var(--space-1);
 }
 
 /* ── Identidade ─────────────────────────────────────────────────────────── */
@@ -121,9 +48,8 @@
   width: 96px;
   aspect-ratio: 1;
   padding: 2px;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-full);
-  background: conic-gradient(from 210deg, var(--accent-bright), transparent 35%, var(--border-strong) 60%, var(--accent-bright));
-  box-shadow: 0 12px 40px -14px var(--glow-1);
 }
 
 .avatar svg,
@@ -244,7 +170,6 @@
   gap: var(--space-1) var(--space-5);
   padding: var(--space-2) var(--space-5);
   border-top: 1px solid var(--border);
-  background: rgb(0 0 0 / 0.22);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--text-faint);
@@ -274,14 +199,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1) var(--space-3);
-}
-
-.themeDot {
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-full);
-  background: var(--accent-bright);
-  box-shadow: 0 0 8px var(--glow-1);
 }
 
 /* ── Card estreito (telemóvel ou pré-visualização) ──────────────────────── */
@@ -319,10 +236,6 @@
   .statusBar {
     padding: var(--space-2) var(--space-4);
   }
-
-  .meta span:last-child {
-    display: none;
-  }
 }
 
 /* Ecrãs baixos (portáteis): cabeçalho mais compacto para sobrar espaço às faces. */
@@ -341,10 +254,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card {
-    transform: none;
-  }
-
   .faceContent {
     animation: none;
   }

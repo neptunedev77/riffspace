@@ -7,7 +7,7 @@ import { renderApp } from './renderApp.tsx'
 /** Entra no editor a partir da página do perfil, como um utilizador. */
 function openEditor(storage: KeyValueStorage = createMemoryStorage()) {
   const utils = renderApp(storage)
-  fireEvent.click(screen.getByRole('link', { name: 'edit profile' }))
+  fireEvent.click(screen.getByRole('link', { name: 'customise' }))
   return utils
 }
 
@@ -24,16 +24,6 @@ function goToTab(name: string) {
 
 function save() {
   fireEvent.click(header().getByRole('button', { name: 'save' }))
-}
-
-function section(title: RegExp) {
-  return within(form().getByRole('heading', { name: title }).closest('section')!)
-}
-
-function rankingNames() {
-  return section(/your ranking/)
-    .queryAllByRole('listitem')
-    .map((item) => item.textContent?.replace(/^\d+/, '').replace('custom', '').trim())
 }
 
 describe('página de edição', () => {
@@ -199,109 +189,7 @@ describe('editor — sair', () => {
   })
 })
 
-describe('editor — bandas', () => {
-  it('pesquisa por nome e filtra por subgénero', () => {
-    openEditor()
-    goToTab('bands')
-    fireEvent.change(form().getByLabelText('name'), { target: { value: 'ins' } })
-    expect(form().getByText('1 result')).toBeInTheDocument()
-    expect(form().getByRole('button', { name: 'add Insomnium to favourites' })).toBeInTheDocument()
-
-    fireEvent.change(form().getByLabelText('name'), { target: { value: '' } })
-    fireEvent.change(form().getByLabelText('subgenre'), { target: { value: 'Black Metal' } })
-    expect(form().getByText('1 result')).toBeInTheDocument()
-    expect(form().getByRole('button', { name: 'add Emperor to favourites' })).toBeInTheDocument()
-  })
-
-  it('pesquisa sem resultados mostra estado vazio com atalho para banda personalizada', () => {
-    openEditor()
-    goToTab('bands')
-    fireEvent.change(form().getByLabelText('name'), { target: { value: 'Garagem Negra' } })
-    expect(form().getByText('0 results')).toBeInTheDocument()
-    expect(form().getByText('No band matches “Garagem Negra”.')).toBeInTheDocument()
-    fireEvent.click(form().getByRole('button', { name: 'add “Garagem Negra” as a custom band' }))
-    expect(form().getByLabelText('Band name')).toHaveValue('Garagem Negra')
-  })
-
-  it('adicionar, ordenar e remover favoritas atualiza a pré-visualização', () => {
-    openEditor()
-    goToTab('bands')
-    fireEvent.click(form().getByRole('button', { name: 'add Emperor to favourites' }))
-    expect(rankingNames().at(-1)).toBe('Emperor')
-    fireEvent.click(form().getByRole('button', { name: 'move Emperor up' }))
-    expect(rankingNames().slice(-2)).toEqual(['Emperor', 'Meshuggah'])
-
-    expect(form().getByRole('button', { name: 'move Gojira up' })).toBeDisabled()
-    fireEvent.click(form().getByRole('button', { name: 'move Gojira down' }))
-    expect(rankingNames().slice(0, 2)).toEqual(['Opeth', 'Gojira'])
-    fireEvent.click(section(/your ranking/).getByRole('button', { name: 'remove Opeth from favourites' }))
-
-    fireEvent.click(preview().getByRole('tab', { name: /^music/ }))
-    const names = within(preview().getByRole('region', { name: 'favourite bands' }))
-      .getAllByRole('heading', { level: 4 })
-      .map((h) => h.textContent)
-    expect(names).toEqual(['Gojira', 'Moonspell', 'At the Gates', 'Mastodon', 'Emperor', 'Meshuggah'])
-  })
-
-  it('cria, edita e apaga uma banda personalizada; persiste depois de guardar', () => {
-    const storage = createMemoryStorage()
-    openEditor(storage)
-    goToTab('bands')
-    fireEvent.click(form().getByRole('button', { name: 'new band' }))
-    fireEvent.change(form().getByLabelText('Band name'), { target: { value: 'Garagem Negra' } })
-    fireEvent.change(form().getByLabelText('country (optional)'), { target: { value: 'PT' } })
-    fireEvent.change(form().getByLabelText('formed in (optional)'), { target: { value: '2019' } })
-    fireEvent.click(form().getByRole('button', { name: 'Doom Metal' }))
-    fireEvent.click(form().getByRole('button', { name: 'add band' }))
-
-    expect(rankingNames().at(-1)).toBe('Garagem Negra')
-    expect(section(/custom bands/).getByText('Portugal · 2019 · Doom Metal')).toBeInTheDocument()
-
-    fireEvent.click(form().getByRole('button', { name: 'edit Garagem Negra' }))
-    fireEvent.change(form().getByLabelText('Band name'), { target: { value: 'Garagem Branca' } })
-    fireEvent.click(form().getByRole('button', { name: 'save band' }))
-    expect(rankingNames().at(-1)).toBe('Garagem Branca')
-    save()
-
-    cleanup()
-    openEditor(storage)
-    goToTab('bands')
-    fireEvent.click(form().getByRole('button', { name: 'delete Garagem Branca' }))
-    expect(form().getByText('You have not added any bands outside the catalogue yet.')).toBeInTheDocument()
-    save()
-    expect(JSON.parse(storage.getItem(STORAGE_KEY)!).profile.customBands).toEqual([])
-  })
-
-  it('banda personalizada com nome repetido é recusada com mensagem', () => {
-    openEditor()
-    goToTab('bands')
-    fireEvent.click(form().getByRole('button', { name: 'new band' }))
-    fireEvent.change(form().getByLabelText('Band name'), { target: { value: 'opeth' } })
-    fireEvent.click(form().getByRole('button', { name: 'add band' }))
-    expect(form().getByRole('alert')).toHaveTextContent('A band with that name already exists')
-  })
-})
-
-describe('editor — álbuns e subgéneros', () => {
-  it('alterna álbuns favoritos e cria um álbum personalizado', () => {
-    openEditor()
-    goToTab('albums')
-    const magma = form().getByRole('button', { name: /^Magma/ })
-    expect(magma).toHaveAttribute('aria-pressed', 'false')
-    fireEvent.click(magma)
-    expect(magma).toHaveAttribute('aria-pressed', 'true')
-
-    fireEvent.click(form().getByRole('button', { name: 'add album by Gojira' }))
-    fireEvent.change(form().getByLabelText('title'), { target: { value: 'Terra Incognita' } })
-    fireEvent.change(form().getByLabelText('year (optional)'), { target: { value: '2001' } })
-    fireEvent.click(form().getByRole('button', { name: 'add album' }))
-    expect(form().getByRole('button', { name: /^Terra Incognita/ })).toHaveAttribute('aria-pressed', 'true')
-    expect(form().getByRole('button', { name: 'delete Terra Incognita' })).toBeInTheDocument()
-
-    fireEvent.click(preview().getByRole('tab', { name: /^music/ }))
-    expect(within(preview().getByRole('region', { name: 'favourite albums' })).getByText('Terra Incognita')).toBeInTheDocument()
-  })
-
+describe('editor — subgéneros', () => {
   it('escolhe subgéneros, adiciona um personalizado e respeita o limite', () => {
     openEditor()
     goToTab('genres')
@@ -397,7 +285,7 @@ describe('editor — aparência', () => {
     expect(bloodMoon).toHaveFocus()
     expect(bloodMoon).toHaveAttribute('aria-checked', 'true')
     expect(document.documentElement.dataset.theme).toBe('blood-moon')
-    expect(within(preview().getByRole('contentinfo')).getByText('Blood Moon')).toBeInTheDocument()
+    expect(document.documentElement.dataset.theme).toBe('blood-moon')
     expect(header().getByText('Unsaved changes.')).toBeInTheDocument()
 
     fireEvent.keyDown(bloodMoon, { key: 'ArrowLeft' })

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { DEMO_ALBUMS, DEMO_BANDS } from '../../data/demo-bands.ts'
 import { claimDemoProfile, createDemoProfile, isDemoSocial } from '../../data/demo-profile.ts'
 import { LIMITS } from '../../domain/limits.ts'
 import { isAllowedSocialUrl, normalizeSocialInput, socialDisplay } from '../../domain/social.ts'
@@ -10,7 +9,6 @@ import { makeProfile } from '../../tests/fixtures.ts'
 import { addSocial, moveSocial, removeSocial, updateSocial } from './socials.ts'
 
 const empty = () => makeProfile({ socials: [] })
-const catalog = { bands: DEMO_BANDS, albums: DEMO_ALBUMS }
 
 describe('normalizeSocialInput', () => {
   it('converte @handles em URLs nas plataformas que os suportam', () => {
@@ -117,7 +115,6 @@ describe('schema e normalização dos socials', () => {
           { id: 'b', platform: 'website', url: 'https://A.example' },
         ],
       }),
-      catalog,
     )
     expect(profile.socials.map((s) => s.id)).toEqual(['a'])
     expect(repairs).toContain('Removed duplicate social links.')
@@ -129,7 +126,7 @@ describe('migração v1 → v2', () => {
     const { socials, ...v1Profile } = makeProfile()
     void socials
     const raw = JSON.stringify({ app: APP_ID, schemaVersion: 1, savedAt: '2026-10-23T12:00:00.000Z', profile: v1Profile })
-    const result = deserializeDocument(raw, { catalog })
+    const result = deserializeDocument(raw, {})
     expect(result.status).toBe('ok')
     if (result.status === 'ok') {
       expect(result.migratedFrom).toBe(1)

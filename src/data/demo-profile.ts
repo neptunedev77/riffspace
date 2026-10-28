@@ -1,3 +1,5 @@
+import type { Album } from '../domain/album.ts'
+import type { Band } from '../domain/band.ts'
 import type { Profile } from '../domain/profile.ts'
 import type { SocialLink } from '../domain/social.ts'
 import type { FeaturedTrack } from '../domain/track.ts'
@@ -23,6 +25,39 @@ export function claimDemoProfile(profile: Profile): Profile {
 export function createDemoProfile(): Profile {
   return structuredClone(DEMO_PROFILE)
 }
+
+/**
+ * Bandas e álbuns da demonstração, tal como a MusicBrainz os devolve
+ * (lib/music/musicbrainz.ts): IDs, país, ano de formação e géneros reais.
+ * As fotografias vêm da Wikimedia Commons (via Wikidata), com autor e licença;
+ * dois nomes de autor foram encurtados ao essencial.
+ */
+const BAND_IDS = {
+  gojira: 'mb-1c5efd53-d6b6-4d63-9d22-a15025cf5f07',
+  opeth: 'mb-c14b4180-dc87-481e-b17a-64e4150f90f6',
+  moonspell: 'mb-386b19c6-a3d2-414a-bef2-c178572b1cbe',
+  atTheGates: 'mb-35f92c4a-69d0-4ed1-ab9e-05259db89d14',
+  mastodon: 'mb-bc5e2ad6-0a4a-4d90-b911-e9a7e6861727',
+  meshuggah: 'mb-cf8b3b8c-118e-4136-8d1d-c37091173413',
+} as const
+
+const DEMO_BANDS: Band[] = [
+  { id: BAND_IDS.gojira, name: 'Gojira', country: 'FR', formedYear: 1996, subgenres: ['Progressive Metal', 'Death Metal', 'Progressive Death Metal', 'Metal'], source: 'musicbrainz', image: { file: 'Gojira live at Unipol Arena, Bologna, December 9th, 2016.jpg', author: 'SuperVirtual', license: 'CC BY-SA 4.0' } },
+  { id: BAND_IDS.opeth, name: 'Opeth', country: 'SE', formedYear: 1990, subgenres: ['Progressive Metal', 'Progressive Death Metal', 'Progressive Rock', 'Death Metal'], source: 'musicbrainz', image: { file: 'Opeth @ Rock Hard Festival 2017 201.jpg', author: 'Grywnn', license: 'CC BY-SA 4.0' } },
+  { id: BAND_IDS.moonspell, name: 'Moonspell', country: 'PT', formedYear: 1989, subgenres: ['Gothic Metal', 'Black Metal', 'Metal'], source: 'musicbrainz', image: { file: 'Moonspell Studio Kraków 2007 10.JPG', author: 'Lilly M (Małgorzata Miłaszewska)', license: 'CC BY 2.5' } },
+  { id: BAND_IDS.atTheGates, name: 'At the Gates', country: 'SE', formedYear: 1990, subgenres: ['Melodic Death Metal', 'Death Metal', 'Metal', 'Gothenburg Metal'], source: 'musicbrainz', image: { file: 'At The Gates - Wacken Open Air 2022 03.jpg', author: 'Frank Schwichtenberg', license: 'CC BY-SA 4.0' } },
+  { id: BAND_IDS.mastodon, name: 'Mastodon', country: 'US', formedYear: 2000, subgenres: ['Progressive Metal', 'Sludge Metal', 'Heavy Metal', 'Metal'], source: 'musicbrainz', image: { file: 'Ursynalia 2012, Mastodon 12.jpg', author: 'Adam Kliczek', license: 'CC BY-SA 3.0' } },
+  { id: BAND_IDS.meshuggah, name: 'Meshuggah', country: 'SE', formedYear: 1987, subgenres: ['Djent', 'Metal', 'Progressive Metal', 'Death Metal'], source: 'musicbrainz', image: { file: 'Meshuggah - Rock am Ring 2018-6418.jpg', author: 'Andreas Lawen, Fotandi', license: 'CC BY-SA 4.0' } },
+]
+
+const DEMO_ALBUMS: Album[] = [
+  { id: 'mb-c64e38e7-ea8d-3cda-ba62-1f4b9f899419', bandId: BAND_IDS.gojira, title: 'From Mars to Sirius', year: 2005, source: 'musicbrainz' },
+  { id: 'mb-1f4a9f6f-9621-3e46-977d-8503e8386768', bandId: BAND_IDS.opeth, title: 'Blackwater Park', year: 2001, source: 'musicbrainz' },
+  { id: 'mb-7eb4d307-e2f2-3258-ad1c-329c29df44a0', bandId: BAND_IDS.moonspell, title: 'Wolfheart', year: 1995, source: 'musicbrainz' },
+  { id: 'mb-675e453b-43c5-3c05-9ac8-dc526471e583', bandId: BAND_IDS.atTheGates, title: 'Slaughter of the Soul', year: 1995, source: 'musicbrainz' },
+  { id: 'mb-defcc444-7255-320d-bf21-888eb4d53ff9', bandId: BAND_IDS.mastodon, title: 'Crack the Skye', year: 2009, source: 'musicbrainz' },
+  { id: 'mb-bc3c02ea-5837-32ab-9c65-f60125458187', bandId: BAND_IDS.meshuggah, title: 'obZen', year: 2008, source: 'musicbrainz' },
+]
 
 /**
  * Música em destaque da demonstração: metadados e URLs oficiais da iTunes Search
@@ -65,18 +100,9 @@ export const DEMO_PROFILE: Profile = {
   tagline: 'Tuned to drop C, raised on Gothenburg riffs and Atlantic fog.',
   bio: 'Garage guitarist since 15. Somewhere between melodic death and progressive metal: riffs that breathe, solos with room, and a noise gate that never turns off. Looking for a drummer who is not afraid of 7/8.',
   location: 'Porto, Portugal',
-  favoriteBandIds: ['gojira', 'opeth', 'moonspell', 'at-the-gates', 'mastodon', 'meshuggah'],
-  favoriteAlbumIds: [
-    'gojira-from-mars-to-sirius',
-    'opeth-blackwater-park',
-    'moonspell-wolfheart',
-    'at-the-gates-slaughter-of-the-soul',
-    'mastodon-crack-the-skye',
-    'insomnium-winters-gate',
-  ],
+  bands: DEMO_BANDS,
+  albums: DEMO_ALBUMS,
   subgenres: ['Melodic Death Metal', 'Progressive Metal', 'Gothic Metal', 'Djent'],
-  customBands: [],
-  customAlbums: [],
   rig: DEMO_RIG,
   // Links ilustrativos: enquanto o perfil é demo, a UI mostra-os sem hiperligação.
   socials: [

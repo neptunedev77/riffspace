@@ -1,12 +1,5 @@
-import type { Album } from '../../domain/album.ts'
-import type { Band } from '../../domain/band.ts'
 import type { Profile } from '../../domain/profile.ts'
 import { translate } from '../../i18n/translate.ts'
-
-export interface Catalog {
-  bands: readonly Band[]
-  albums: readonly Album[]
-}
 
 export interface NormalizeResult {
   profile: Profile
@@ -28,51 +21,22 @@ function uniqueBy<T>(items: readonly T[], key: (item: T) => string): { items: T[
 
 /**
  * Repõe as invariantes entre entidades de um perfil já validado pelo schema.
- * Repara em vez de rejeitar: dados guardados com referências partidas
- * (p. ex. uma banda que saiu do catálogo) não devem impedir o arranque.
- * É uma função pura; não altera o perfil recebido.
+ * Repara em vez de rejeitar: dados guardados com duplicados ou referências
+ * partidas não devem impedir o arranque. É uma função pura.
  */
-export function normalizeProfile(input: Profile, catalog: Catalog): NormalizeResult {
+export function normalizeProfile(input: Profile): NormalizeResult {
   const repairs: string[] = []
-  const catalogBandIds = new Set(catalog.bands.map((band) => band.id))
 
-  // Bandas personalizadas: sempre isCustom, sem IDs repetidos nem colisões com o catálogo.
-  const customBandsUnique = uniqueBy(
-    input.customBands.filter((band) => !catalogBandIds.has(band.id)),
-    (band) => band.id,
-  )
-  const droppedCustomBands = input.customBands.length - customBandsUnique.items.length
-  if (droppedCustomBands > 0) repairs.push(translate('repair.customBands', { count: droppedCustomBands }))
-  const customBands = customBandsUnique.items.map((band) => (band.isCustom ? band : { ...band, isCustom: true }))
+  const bands = uniqueBy(input.bands, (band) => band.id)
+  if (bands.removed > 0) repairs.push(translate('repair.bands'))
+  const bandIds = new Set(bands.items.map((band) => band.id))
 
-  const bandIds = new Set([...catalogBandIds, ...customBands.map((band) => band.id)])
-  const catalogAlbumIds = new Set(catalog.albums.map((album) => album.id))
-
-  // Álbuns personalizados: banda existente, ID único e sem colidir com o catálogo.
-  const customAlbumsUnique = uniqueBy(
-    input.customAlbums.filter((album) => bandIds.has(album.bandId) && !catalogAlbumIds.has(album.id)),
+  // Álbuns: ID único e banda presente no perfil.
+  const albums = uniqueBy(
+    input.albums.filter((album) => bandIds.has(album.bandId)),
     (album) => album.id,
   )
-  const droppedCustomAlbums = input.customAlbums.length - customAlbumsUnique.items.length
-  if (droppedCustomAlbums > 0) repairs.push(translate('repair.customAlbums', { count: droppedCustomAlbums }))
-  const customAlbums = customAlbumsUnique.items
-  const albumIds = new Set([...catalogAlbumIds, ...customAlbums.map((album) => album.id)])
-
-  const favoriteBands = uniqueBy(
-    input.favoriteBandIds.filter((id) => bandIds.has(id)),
-    (id) => id,
-  ).items
-  if (favoriteBands.length !== input.favoriteBandIds.length) {
-    repairs.push(translate('repair.favoriteBands'))
-  }
-
-  const favoriteAlbums = uniqueBy(
-    input.favoriteAlbumIds.filter((id) => albumIds.has(id)),
-    (id) => id,
-  ).items
-  if (favoriteAlbums.length !== input.favoriteAlbumIds.length) {
-    repairs.push(translate('repair.favoriteAlbums'))
-  }
+  if (albums.items.length !== input.albums.length) repairs.push(translate('repair.albums'))
 
   const subgenres = uniqueBy(input.subgenres, (genre) => genre.toLowerCase())
   if (subgenres.removed > 0) repairs.push(translate('repair.subgenres'))
@@ -86,10 +50,8 @@ export function normalizeProfile(input: Profile, catalog: Catalog): NormalizeRes
   return {
     profile: {
       ...input,
-      customBands,
-      customAlbums,
-      favoriteBandIds: favoriteBands,
-      favoriteAlbumIds: favoriteAlbums,
+      bands: bands.items,
+      albums: albums.items,
       subgenres: subgenres.items,
       rig: rig.items,
       socials: socials.items,

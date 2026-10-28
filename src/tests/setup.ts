@@ -1,7 +1,19 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
-import { afterEach } from 'vitest'
+import { afterEach, beforeEach } from 'vitest'
 import { setActiveLocale } from '../i18n/translate.ts'
+import { configureWiki } from '../lib/music/bandSearch.ts'
+import { musicBrainz } from '../lib/music/musicbrainz.ts'
+
+// Os testes nunca falam com a MusicBrainz real: sem espera entre pedidos e,
+// por omissão, sem rede. Cada teste pode dar respostas com musicBrainz.reset({ fetchFn }).
+beforeEach(() => {
+  musicBrainz.reset({
+    minIntervalMs: 0,
+    fetchFn: () => Promise.reject(new TypeError('Network disabled in tests')),
+  })
+  configureWiki({ fetchFn: () => Promise.reject(new TypeError('Network disabled in tests')) })
+})
 
 afterEach(() => {
   cleanup()

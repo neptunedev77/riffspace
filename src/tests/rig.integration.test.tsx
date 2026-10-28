@@ -26,17 +26,25 @@ function chainNames(scope = preview()) {
     .map((button) => button.querySelector('[class*=nodeName]')?.textContent)
 }
 
-function fillGear(fields: { type?: string; brand: string; model: string; nickname?: string; tags?: string; url?: string }) {
-  if (fields.type) fireEvent.change(form().getByLabelText('type'), { target: { value: fields.type } })
-  fireEvent.change(form().getByLabelText('Brand'), { target: { value: fields.brand } })
-  fireEvent.change(form().getByLabelText('Model'), { target: { value: fields.model } })
-  if (fields.nickname) fireEvent.change(form().getByLabelText('custom name (optional)'), { target: { value: fields.nickname } })
-  if (fields.tags) fireEvent.change(form().getByLabelText('tags (optional)'), { target: { value: fields.tags } })
-  if (fields.url) fireEvent.change(form().getByLabelText('image url (optional)'), { target: { value: fields.url } })
+const quickForm = () => within(form().getByRole('form', { name: 'add gear' }))
+
+/** Adiciona uma peça pela linha rápida (tipo, marca, modelo). */
+function quickAdd(fields: { type?: string; brand: string; model: string }) {
+  if (fields.type) fireEvent.click(quickForm().getByRole('button', { name: fields.type }))
+  fireEvent.change(quickForm().getByLabelText('Brand'), { target: { value: fields.brand } })
+  fireEvent.change(quickForm().getByLabelText('Model'), { target: { value: fields.model } })
+  fireEvent.click(quickForm().getByRole('button', { name: 'add' }))
 }
 
-function submitGear() {
-  fireEvent.click(within(form().getByRole('form', { name: /new gear|edit/ })).getByRole('button', { name: /add gear|save gear/ }))
+/** Edita uma peça no sítio; os extras estão em "more details". */
+function editGear(name: string, fields: { brand?: string; model?: string; nickname?: string; tags?: string }) {
+  fireEvent.click(form().getByRole('button', { name: `edit ${name}` }))
+  const edit = within(form().getByRole('form', { name: `edit ${name}` }))
+  if (fields.brand !== undefined) fireEvent.change(edit.getByLabelText('Brand'), { target: { value: fields.brand } })
+  if (fields.model !== undefined) fireEvent.change(edit.getByLabelText('Model'), { target: { value: fields.model } })
+  if (fields.nickname) fireEvent.change(edit.getByLabelText('custom name (optional)'), { target: { value: fields.nickname } })
+  if (fields.tags) fireEvent.change(edit.getByLabelText('tags (optional)'), { target: { value: fields.tags } })
+  fireEvent.click(edit.getByRole('button', { name: 'save gear' }))
 }
 
 const DEMO_CHAIN = [
@@ -60,28 +68,33 @@ describe('rig builder', () => {
 
   it('adicionar um pedal mostra-o logo na cadeia, antes do amplificador', () => {
     openRigTab()
-    fireEvent.click(form().getByRole('button', { name: 'add gear' }))
-    fillGear({ brand: 'Boss', model: 'DS-1', nickname: 'Laranja', tags: 'Distorção, clássico' })
-    submitGear()
+    quickAdd({ type: 'pedal', brand: 'Boss', model: 'DS-1' })
     expect(chainNames()).toEqual([...DEMO_CHAIN.slice(0, 5), 'Boss DS-1', ...DEMO_CHAIN.slice(5)])
-    expect(form().getByText('pedal · “Laranja”')).toBeInTheDocument()
+    // A linha limpa-se para encadear peças, mantendo o tipo escolhido.
+    expect(quickForm().getByLabelText('Brand')).toHaveValue('')
+    expect(quickForm().getByRole('button', { name: 'pedal' })).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('equipamento fora de catálogo e fora da cadeia vai para "Também na rig"', () => {
+  it('o essencial é tipo, marca e modelo; os extras ficam em "more details" ao editar', () => {
     openRigTab()
-    fireEvent.click(form().getByRole('button', { name: 'add gear' }))
-    fillGear({ type: 'other', brand: 'DIY', model: 'Pedalboard de madeira' })
-    submitGear()
+    quickAdd({ type: 'pedal', brand: 'Boss', model: 'DS-1' })
+    editGear('Boss DS-1', { nickname: 'Laranja', tags: 'Distorção, clássico' })
+    expect(form().getByText('pedal · “Laranja”')).toBeInTheDocument()
+    expect(form().getByRole('button', { name: 'edit Boss DS-1' })).toHaveFocus()
+  })
+
+  it('equipamento fora da cadeia vai para "off the chain"', () => {
+    openRigTab()
+    quickAdd({ type: 'other', brand: 'DIY', model: 'Pedalboard de madeira' })
     expect(chainNames()).toEqual(DEMO_CHAIN)
     expect(preview().getByText('DIY Pedalboard de madeira')).toBeInTheDocument()
   })
 
-  it('dados inválidos no formulário são recusados com mensagem', () => {
+  it('dados inválidos são recusados com mensagem', () => {
     openRigTab()
-    fireEvent.click(form().getByRole('button', { name: 'add gear' }))
-    fillGear({ brand: '', model: 'Sem marca' })
-    submitGear()
-    expect(form().getByRole('alert')).toHaveTextContent('Brand is required.')
+    quickAdd({ brand: '', model: 'Sem marca' })
+    expect(quickForm().getByRole('alert')).toHaveTextContent('Brand is required.')
+    expect(quickForm().getByLabelText('Model')).toHaveValue('Sem marca')
   })
 
   it('reordenar pedais altera a cadeia visual', () => {
@@ -96,9 +109,9 @@ describe('rig builder', () => {
   it('editar mantém a posição e atualiza a cadeia', () => {
     openRigTab()
     fireEvent.click(form().getByRole('button', { name: 'edit Maxon OD808' }))
-    expect(form().getByLabelText('Model')).toHaveValue('OD808')
-    fillGear({ brand: 'Maxon', model: 'OD808X', nickname: 'Verde' })
-    submitGear()
+    expect(within(form().getByRole('form', { name: 'edit Maxon OD808' })).getByLabelText('Model')).toHaveValue('OD808')
+    fireEvent.click(form().getByRole('button', { name: 'cancel' }))
+    editGear('Maxon OD808', { model: 'OD808X', nickname: 'Verde' })
     expect(chainNames()[2]).toBe('Maxon OD808X')
   })
 
@@ -117,9 +130,7 @@ describe('rig builder', () => {
     openRigTab(storage)
     fireEvent.click(form().getByRole('button', { name: 'move TC Electronic PolyTune 3 down' }))
     fireEvent.click(form().getByRole('button', { name: 'remove Focusrite Scarlett 2i2' }))
-    fireEvent.click(form().getByRole('button', { name: 'add gear' }))
-    fillGear({ type: 'amp', brand: 'Orange', model: 'Rockerverb 50', tags: 'Válvulas' })
-    submitGear()
+    quickAdd({ type: 'amp', brand: 'Orange', model: 'Rockerverb 50' })
     fireEvent.click(header().getByRole('button', { name: 'save' }))
 
     const stored = JSON.parse(storage.getItem(STORAGE_KEY)!).profile.rig as GearItem[]
@@ -210,30 +221,18 @@ describe('rig com muitas peças', () => {
     cleanup()
     openRigTab(storage)
     expect(form().getByText('40/40')).toBeInTheDocument()
-    expect(form().getByRole('button', { name: 'add gear' })).toBeDisabled()
+    expect(quickForm().getByRole('button', { name: 'add' })).toBeDisabled()
     expect(form().getByText(/The rig is full \(40 items\)/)).toBeInTheDocument()
   })
 })
 
 describe('foco nos sub-formulários', () => {
-  it('depois de adicionar ou cancelar, o foco volta ao botão de abertura', () => {
-    openRigTab()
-    fireEvent.click(form().getByRole('button', { name: 'add gear' }))
-    fillGear({ brand: 'Boss', model: 'DS-1' })
-    submitGear()
-    expect(form().getByRole('button', { name: 'add gear' })).toHaveFocus()
-
-    fireEvent.click(form().getByRole('button', { name: 'add gear' }))
-    fireEvent.click(within(form().getByRole('form', { name: 'new gear' })).getByRole('button', { name: 'cancel' }))
-    expect(form().getByRole('button', { name: 'add gear' })).toHaveFocus()
-  })
-
-  it('o mesmo acontece no formulário de bandas personalizadas', () => {
+  it('depois de criar uma banda à mão, o foco volta ao botão de abertura', () => {
     renderApp(createMemoryStorage(), '/edit')
     fireEvent.click(within(screen.getByRole('tablist', { name: 'editor sections' })).getByRole('tab', { name: /^bands/ }))
-    fireEvent.click(form().getByRole('button', { name: 'new band' }))
+    fireEvent.click(form().getByRole('button', { name: 'add a band manually' }))
     fireEvent.change(form().getByLabelText('Band name'), { target: { value: 'Garagem' } })
     fireEvent.click(form().getByRole('button', { name: 'add band' }))
-    expect(form().getByRole('button', { name: 'new band' })).toHaveFocus()
+    expect(form().getByRole('button', { name: 'add a band manually' })).toHaveFocus()
   })
 })

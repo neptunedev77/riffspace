@@ -54,9 +54,9 @@ describe('profile page — card', () => {
     expect(within(card()).getByRole('tab', { name: /^music/ })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('the "edit profile" link points to the editor', () => {
+  it('the "customise" link in the app bar points to the editor', () => {
     renderApp()
-    expect(screen.getByRole('link', { name: 'edit profile' })).toHaveAttribute('href', '/edit')
+    expect(screen.getByRole('link', { name: 'customise' })).toHaveAttribute('href', '/edit')
   })
 
   it('mostra estatísticas reais e a data de criação', () => {
@@ -65,6 +65,52 @@ describe('profile page — card', () => {
     expect(stats).toHaveTextContent('bands6')
     expect(stats).toHaveTextContent('gear8')
     expect(stats).toHaveTextContent('since October 2026')
+  })
+})
+
+describe('face music com muitas bandas', () => {
+  function profileWithBands(count: number) {
+    const base = makeProfile()
+    const bands = Array.from({ length: count }, (_, i) => ({ ...base.bands[0]!, id: `band-${i}`, name: `Banda ${i + 1}` }))
+    return makeProfile({ bands, albums: [] })
+  }
+
+  it('mostra as 10 primeiras e um botão para as restantes', () => {
+    renderApp(storageWithProfile(profileWithBands(12)))
+    openFace('music')
+    const region = () => within(screen.getByRole('region', { name: 'favourite bands' }))
+    expect(region().getAllByRole('heading', { level: 4 })).toHaveLength(10)
+    fireEvent.click(region().getByRole('button', { name: 'show all 12 bands' }))
+    expect(region().getAllByRole('heading', { level: 4 }).at(-1)).toHaveTextContent('Banda 12')
+    fireEvent.click(region().getByRole('button', { name: 'show less' }))
+    expect(region().getAllByRole('heading', { level: 4 })).toHaveLength(10)
+  })
+
+  it('com 10 ou menos não há botão', () => {
+    renderApp(storageWithProfile(profileWithBands(10)))
+    openFace('music')
+    expect(within(screen.getByRole('region', { name: 'favourite bands' })).queryByRole('button')).not.toBeInTheDocument()
+  })
+})
+
+describe('imagens e destaques', () => {
+  it('as bandas com fotografia mostram-na e os créditos indicam autor e licença', () => {
+    renderApp()
+    openFace('music')
+    const firstBand = within(screen.getByRole('region', { name: 'favourite bands' })).getAllByRole('listitem')[0]!
+    expect(firstBand.querySelector('img')?.getAttribute('src')).toMatch(/^https:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\//)
+    const credits = within(card()).getByText('photo credits').closest('details')!
+    expect(within(credits).getByRole('link', { name: 'Gojira' })).toHaveAttribute('href', expect.stringContaining('commons.wikimedia.org/wiki/File:'))
+    expect(credits).toHaveTextContent('SuperVirtual · CC BY-SA 4.0')
+  })
+
+  it('o álbum favorito indica de que banda é, mesmo que não seja a banda n.º 1', () => {
+    const base = makeProfile()
+    const opethAlbum = base.albums[1]!
+    renderApp(storageWithProfile(makeProfile({ albums: [opethAlbum, base.albums[0]!] })))
+    const highlight = within(card()).getByRole('button', { name: /favourite album/ })
+    expect(highlight).toHaveTextContent('Blackwater Park')
+    expect(highlight).toHaveTextContent('Opeth · 2001')
   })
 })
 
@@ -99,17 +145,16 @@ describe('socials no card', () => {
 })
 
 describe('tema na página do perfil', () => {
-  it('aplica o tema guardado a <html> e mostra-o na barra de estado', () => {
+  it('aplica o tema guardado a <html>', () => {
     renderApp(storageWithProfile(makeProfile({ theme: 'blood-moon' })))
     expect(document.documentElement.dataset.theme).toBe('blood-moon')
-    expect(within(card()).getByRole('contentinfo')).toHaveTextContent('Blood Moon')
   })
 
   it('não tem controlos de personalização: tudo vive no editor', () => {
     renderApp()
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /reset/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'edit profile' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'customise' })).toBeInTheDocument()
   })
 })
 
@@ -142,5 +187,22 @@ describe('rotas', () => {
     renderApp(undefined, '/nao-existe')
     expect(screen.getByRole('heading', { level: 1, name: '404 — dead air' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'back to the profile' })).toHaveAttribute('href', '/')
+  })
+
+  it('/@nickname mostra o perfil público, sem controlos de edição no card', () => {
+    renderApp(undefined, '/@nocturne')
+    expect(screen.getByRole('heading', { level: 1, name: 'Nocturne' })).toBeInTheDocument()
+    expect(within(card()).queryByRole('link', { name: /customise|edit/ })).not.toBeInTheDocument()
+  })
+
+  it('um @nickname que não existe neste browser diz isso mesmo, sem fingir que o encontrou', () => {
+    renderApp(undefined, '/@outra.pessoa')
+    expect(screen.getByRole('heading', { level: 1, name: '@outra.pessoa not found' })).toBeInTheDocument()
+    expect(screen.getByText(/only live in this browser/)).toBeInTheDocument()
+  })
+
+  it('um segmento sem @ continua a ser 404', () => {
+    renderApp(undefined, '/nocturne')
+    expect(screen.getByRole('heading', { level: 1, name: '404 — dead air' })).toBeInTheDocument()
   })
 })

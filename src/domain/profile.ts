@@ -8,15 +8,15 @@ import type { ThemeId } from './theme.ts'
 export type AvatarSpec = { kind: 'generated' } | { kind: 'url'; url: string }
 
 /**
- * Perfil RIFFSPACE (schema v2).
+ * Perfil RIFFSPACE (schema v3).
  *
  * Invariantes — garantidas por lib/validation ao ler e ao atualizar:
  * - `id` e todos os IDs internos seguem ID_PATTERN; os IDs da rig são únicos.
  * - Textos respeitam LIMITS e chegam sem espaços à volta.
- * - `favoriteBandIds` não tem repetidos e só referencia bandas do catálogo ou
- *   de `customBands`; o mesmo para `favoriteAlbumIds` com álbuns.
- * - Cada álbum de `customAlbums` pertence a uma banda existente.
- * - Bandas personalizadas têm `isCustom: true` e nunca reutilizam um ID do catálogo.
+ * - `bands` não tem IDs repetidos; a ordem é o ranking.
+ * - `albums` não tem IDs repetidos e cada álbum pertence a uma banda de `bands`
+ *   (remover uma banda remove os seus álbuns).
+ * - Entidades da MusicBrainz têm IDs `mb-<mbid>`; as personalizadas, IDs gerados.
  * - `subgenres` não tem repetidos (comparação sem distinção de maiúsculas).
  * - Cada link social é http(s), pertence a um domínio da sua plataforma e não
  *   há links repetidos (mesmo URL).
@@ -30,19 +30,16 @@ export interface Profile {
   tagline: string
   bio: string
   location?: string
-  /** IDs ordenados: a posição é o ranking. */
-  favoriteBandIds: string[]
-  favoriteAlbumIds: string[]
+  /** Bandas favoritas, guardadas no próprio perfil; a posição é o ranking. */
+  bands: Band[]
+  /** Álbuns favoritos, de bandas que estão em `bands`. */
+  albums: Album[]
   subgenres: string[]
-  /** Bandas adicionadas pelo utilizador que não existem no catálogo. */
-  customBands: Band[]
-  /** Álbuns adicionados pelo utilizador (de bandas do catálogo ou personalizadas). */
-  customAlbums: Album[]
   /** Ordem da rig = ordem de apresentação. */
   rig: GearItem[]
   /** Links para redes e plataformas, pela ordem de apresentação. */
   socials: SocialLink[]
-  /** Música em destaque (opcional; campo acrescentado sem migração por ser opcional). */
+  /** Música em destaque (opcional). */
   featuredTrack?: FeaturedTrack
   theme: ThemeId
   /** Perfis de demonstração são sempre assinalados como tal na UI. */
@@ -51,28 +48,7 @@ export interface Profile {
   updatedAt: string
 }
 
-/** Resolve IDs em entidades preservando a ordem e ignorando IDs desconhecidos. */
-export function resolveByIds<T extends { id: string }>(ids: readonly string[], items: readonly T[]): T[] {
-  const byId = new Map(items.map((item) => [item.id, item]))
-  return ids.flatMap((id) => {
-    const item = byId.get(id)
-    return item ? [item] : []
-  })
-}
-
-/** Catálogo efetivo do perfil: catálogo local + entradas personalizadas. */
-export function allBands(profile: Profile, catalog: readonly Band[]): Band[] {
-  return [...catalog, ...profile.customBands]
-}
-
-export function allAlbums(profile: Profile, catalog: readonly Album[]): Album[] {
-  return [...catalog, ...profile.customAlbums]
-}
-
-export function favoriteBands(profile: Profile, catalog: readonly Band[]): Band[] {
-  return resolveByIds(profile.favoriteBandIds, allBands(profile, catalog))
-}
-
-export function favoriteAlbums(profile: Profile, catalog: readonly Album[]): Album[] {
-  return resolveByIds(profile.favoriteAlbumIds, allAlbums(profile, catalog))
+/** Banda do perfil com o ID indicado. */
+export function findBand(profile: Profile, id: string): Band | undefined {
+  return profile.bands.find((band) => band.id === id)
 }

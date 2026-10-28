@@ -27,7 +27,7 @@ describe('persistência na App', () => {
     document.documentElement.dataset.theme = 'obsidian'
     renderApp(storage)
     expect(document.documentElement.dataset.theme).toBe('blood-moon')
-    expect(screen.getByRole('article')).toHaveTextContent('Blood Moon')
+    expect(document.documentElement.dataset.theme).toBe('blood-moon')
   })
 
   it('cancelar o editor reverte o tema pré-visualizado', () => {

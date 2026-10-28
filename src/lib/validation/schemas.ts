@@ -69,13 +69,25 @@ export const bioSchema = text(LIMITS.bio.max, 'field.bio')
 export const locationSchema = optionalText(LIMITS.location.max, 'field.location')
 export const subgenreSchema = requiredText(LIMITS.subgenre.max, 'field.subgenre')
 
+export const musicSourceSchema = z.enum(['musicbrainz', 'custom'])
+
+/** Ficheiro da Commons: sem caracteres proibidos nos títulos do MediaWiki nem barras. */
+const COMMONS_FILE = /^[^#<>[\]|{}/\p{Cc}]+\.(?:jpe?g|png|webp|gif|svg|tiff?)$/iu
+
+export const bandImageSchema = z.object({
+  file: z.string().max(LIMITS.imageFile.max).regex(COMMONS_FILE),
+  author: optionalText(LIMITS.imageCredit.max, 'field.imageCredit'),
+  license: optionalText(LIMITS.imageCredit.max, 'field.imageCredit'),
+})
+
 export const bandSchema = z.object({
   id: idSchema,
   name: requiredText(LIMITS.bandName.max, 'field.bandName'),
   country: z.string().regex(COUNTRY_PATTERN, msg('validation.countryInvalid')).optional(),
   formedYear: yearSchema.optional(),
   subgenres: z.array(subgenreSchema).max(LIMITS.subgenres.max),
-  isCustom: z.boolean(),
+  source: musicSourceSchema,
+  image: bandImageSchema.optional(),
 })
 
 export const albumSchema = z.object({
@@ -83,6 +95,7 @@ export const albumSchema = z.object({
   bandId: idSchema,
   title: requiredText(LIMITS.albumTitle.max, 'field.albumTitle'),
   year: yearSchema.optional(),
+  source: musicSourceSchema,
 })
 
 export const gearItemSchema = z.object({
@@ -147,11 +160,9 @@ export const profileSchema = z.object({
   tagline: taglineSchema,
   bio: bioSchema,
   location: locationSchema,
-  favoriteBandIds: z.array(idSchema).max(LIMITS.favoriteBands.max, msg('validation.maxFavoriteBands', { max: LIMITS.favoriteBands.max })),
-  favoriteAlbumIds: z.array(idSchema).max(LIMITS.favoriteAlbums.max, msg('validation.maxFavoriteAlbums', { max: LIMITS.favoriteAlbums.max })),
+  bands: z.array(bandSchema).max(LIMITS.favoriteBands.max, msg('validation.maxFavoriteBands', { max: LIMITS.favoriteBands.max })),
+  albums: z.array(albumSchema).max(LIMITS.favoriteAlbums.max, msg('validation.maxFavoriteAlbums', { max: LIMITS.favoriteAlbums.max })),
   subgenres: z.array(subgenreSchema).max(LIMITS.subgenres.max, msg('validation.maxSubgenres', { max: LIMITS.subgenres.max })),
-  customBands: z.array(bandSchema).max(LIMITS.customBands.max),
-  customAlbums: z.array(albumSchema).max(LIMITS.customAlbums.max),
   rig: z.array(gearItemSchema).max(LIMITS.rig.max, msg('validation.maxRig', { max: LIMITS.rig.max })),
   socials: z.array(socialLinkSchema).max(LIMITS.socials.max, msg('validation.maxSocials', { max: LIMITS.socials.max })),
   featuredTrack: featuredTrackSchema.optional(),

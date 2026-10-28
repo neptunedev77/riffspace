@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { DEMO_ALBUMS, DEMO_BANDS } from '../data/demo-bands.ts'
 import { DEMO_PROFILE } from '../data/demo-profile.ts'
 import { createId, isValidId } from './id.ts'
 
@@ -28,7 +27,7 @@ describe('createId', () => {
 
 describe('isValidId', () => {
   it('aceita os IDs dos dados de demonstração', () => {
-    const ids = [DEMO_PROFILE.id, ...DEMO_BANDS.map((b) => b.id), ...DEMO_ALBUMS.map((a) => a.id), ...DEMO_PROFILE.rig.map((g) => g.id)]
+    const ids = [DEMO_PROFILE.id, ...DEMO_PROFILE.bands.map((b) => b.id), ...DEMO_PROFILE.albums.map((a) => a.id), ...DEMO_PROFILE.rig.map((g) => g.id)]
     expect(ids.every(isValidId)).toBe(true)
   })
 

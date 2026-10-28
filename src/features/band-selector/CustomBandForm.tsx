@@ -1,42 +1,31 @@
 import { useId, useState, type FormEvent } from 'react'
 import { Button } from '../../components/ui/Button.tsx'
-import { Chip } from '../../components/ui/Chip.tsx'
 import { Input } from '../../components/ui/Input.tsx'
 import { Select } from '../../components/ui/Select.tsx'
 import type { Band } from '../../domain/band.ts'
 import { LIMITS, maxYear } from '../../domain/limits.ts'
+import { useI18n } from '../../i18n/context.ts'
 import styles from '../profile-editor/EditorForms.module.css'
 import { countryOptions } from './countries.ts'
 import type { CustomBandInput } from './selection.ts'
-import { useI18n } from '../../i18n/context.ts'
 
 interface CustomBandFormProps {
   /** Banda a editar; sem ela o formulário cria uma nova. */
   band?: Band
   initialName?: string
-  subgenreOptions: readonly string[]
   /** Devolve uma mensagem de erro para mostrar, ou undefined em caso de sucesso. */
   onSubmit: (input: CustomBandInput) => string | undefined
   onCancel: () => void
 }
 
-export function CustomBandForm({ band, initialName = '', subgenreOptions, onSubmit, onCancel }: CustomBandFormProps) {
+/** Banda escrita à mão, para quando a pesquisa não a encontra ou não está disponível. */
+export function CustomBandForm({ band, initialName = '', onSubmit, onCancel }: CustomBandFormProps) {
   const [name, setName] = useState(band?.name ?? initialName)
   const [country, setCountry] = useState(band?.country ?? '')
   const [year, setYear] = useState(band?.formedYear ? String(band.formedYear) : '')
-  const [genres, setGenres] = useState<string[]>(band?.subgenres ?? [])
   const [error, setError] = useState<string>()
   const titleId = useId()
   const { t } = useI18n()
-
-  const toggleGenre = (genre: string) =>
-    setGenres((current) =>
-      current.includes(genre)
-        ? current.filter((g) => g !== genre)
-        : current.length < LIMITS.subgenres.max
-          ? [...current, genre]
-          : current,
-    )
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -45,7 +34,7 @@ export function CustomBandForm({ band, initialName = '', subgenreOptions, onSubm
       setError(t('validation.yearInteger'))
       return
     }
-    setError(onSubmit({ name, country: country || undefined, formedYear: parsedYear, subgenres: genres }))
+    setError(onSubmit({ name, country: country || undefined, formedYear: parsedYear }))
   }
 
   return (
@@ -78,23 +67,6 @@ export function CustomBandForm({ band, initialName = '', subgenreOptions, onSubm
           onChange={(event) => setYear(event.target.value)}
         />
       </div>
-      <fieldset className={styles.fieldset}>
-        <legend className={styles.legend}>
-          {t('genres.list')}{' '}
-          <span className={styles.count}>
-            {genres.length}/{LIMITS.subgenres.max}
-          </span>
-        </legend>
-        <ul className={styles.chips}>
-          {subgenreOptions.map((genre) => (
-            <li key={genre}>
-              <Chip selected={genres.includes(genre)} onToggle={() => toggleGenre(genre)}>
-                {genre}
-              </Chip>
-            </li>
-          ))}
-        </ul>
-      </fieldset>
       {error && (
         <p className={styles.formError} role="alert">
           {error}

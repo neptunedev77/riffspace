@@ -15,7 +15,6 @@ import {
 } from '../../lib/track/itunes.ts'
 import styles from '../profile-editor/EditorForms.module.css'
 import type { TabProps } from '../profile-editor/IdentityTab.tsx'
-import own from './TrackTab.module.css'
 
 type SearchState =
   | { status: 'idle' }
@@ -116,16 +115,16 @@ export function TrackTab({ draft, update, fetchFn, decode }: TrackTabProps) {
           {t('trackTab.current')}
         </h3>
         {track ? (
-          <div className={own.current}>
-            <div className={own.item}>
+          <div className={styles.current}>
+            <div className={styles.mediaItem}>
               {track.artworkUrl ? (
-                <img src={track.artworkUrl} alt="" width={56} height={56} className={cx(own.thumb, own.thumbLarge)} />
+                <img src={track.artworkUrl} alt="" width={56} height={56} className={cx(styles.thumb, styles.thumbLarge)} />
               ) : (
-                <Music aria-hidden="true" className={cx(own.thumb, own.thumbLarge)} />
+                <Music aria-hidden="true" className={cx(styles.thumb, styles.thumbLarge)} />
               )}
               <span className={styles.resultText}>
-                <span className={own.name}>{track.title}</span>
-                <span className={own.meta}>{[track.artist, track.album].filter(Boolean).join(' · ')}</span>
+                <span className={styles.mediaName}>{track.title}</span>
+                <span className={styles.mediaMeta}>{[track.artist, track.album].filter(Boolean).join(' · ')}</span>
               </span>
             </div>
             <Button size="sm" variant="ghost" icon={<Trash2 />} onClick={remove}>
@@ -156,14 +155,14 @@ export function TrackTab({ draft, update, fetchFn, decode }: TrackTabProps) {
 
         <div aria-live="polite">
           {search.status === 'searching' && (
-            <p className={cx(styles.resultsCount, own.status)}>
-              <LoaderCircle aria-hidden="true" className={own.spin} /> {t('trackTab.searching')}
+            <p className={cx(styles.resultsCount, styles.statusLine)}>
+              <LoaderCircle aria-hidden="true" className={styles.spin} /> {t('trackTab.searching')}
             </p>
           )}
           {search.status === 'error' && <p className={styles.formError}>{t('trackTab.error.search')}</p>}
           {analysing && (
-            <p className={cx(styles.resultsCount, own.status)}>
-              <LoaderCircle aria-hidden="true" className={own.spin} /> {t('trackTab.analysing', { title: analysing.title })}
+            <p className={cx(styles.resultsCount, styles.statusLine)}>
+              <LoaderCircle aria-hidden="true" className={styles.spin} /> {t('trackTab.analysing', { title: analysing.title })}
             </p>
           )}
           {error && (
@@ -185,15 +184,15 @@ export function TrackTab({ draft, update, fetchFn, decode }: TrackTabProps) {
                 const selected = track?.trackId === result.trackId
                 return (
                   <li key={result.trackId} className={cx(styles.resultItem, selected && styles.resultSelected)}>
-                    <span className={own.item}>
+                    <span className={styles.mediaItem}>
                       {result.artworkUrl ? (
-                        <img src={result.artworkUrl} alt="" width={40} height={40} loading="lazy" className={own.thumb} />
+                        <img src={result.artworkUrl} alt="" width={40} height={40} loading="lazy" className={styles.thumb} />
                       ) : (
-                        <Music aria-hidden="true" className={own.thumb} />
+                        <Music aria-hidden="true" className={styles.thumb} />
                       )}
                       <span className={styles.resultText}>
-                        <span className={own.name}>{result.title}</span>
-                        <span className={own.meta}>{[result.artist, result.album].filter(Boolean).join(' · ')}</span>
+                        <span className={styles.mediaName}>{result.title}</span>
+                        <span className={styles.mediaMeta}>{[result.artist, result.album].filter(Boolean).join(' · ')}</span>
                       </span>
                     </span>
                     <Button
@@ -201,7 +200,7 @@ export function TrackTab({ draft, update, fetchFn, decode }: TrackTabProps) {
                       variant={selected ? 'secondary' : 'ghost'}
                       icon={
                         analysing?.trackId === result.trackId ? (
-                          <LoaderCircle className={own.spin} />
+                          <LoaderCircle className={styles.spin} />
                         ) : selected ? (
                           <Check />
                         ) : (
@@ -222,7 +221,7 @@ export function TrackTab({ draft, update, fetchFn, decode }: TrackTabProps) {
           ))}
       </section>
 
-      <p className={own.attribution}>{t('trackTab.attribution')}</p>
+      <p className={styles.attribution}>{t('trackTab.attribution')}</p>
     </div>
   )
 }

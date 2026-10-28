@@ -1,27 +1,25 @@
-import { intlLocale } from '../i18n/translate.ts'
-import type { Album } from '../domain/album.ts'
-import type { Band } from '../domain/band.ts'
-
 /**
- * Catálogo local de DEMONSTRAÇÃO. Pequeno e propositadamente incompleto.
- * Contém apenas metadados factuais em texto (nome, país, ano de formação,
- * álbuns); não inclui logótipos, fotografias nem capas.
+ * Catálogo local da versão 2 do schema, congelado. Já não é usado pela UI:
+ * existe só para a migração v2 → v3 converter os IDs do antigo catálogo em
+ * bandas e álbuns guardados no próprio perfil. Não alterar.
  */
+export interface LegacyBand {
+  id: string
+  name: string
+  country?: string
+  formedYear?: number
+  subgenres: string[]
+  isCustom: boolean
+}
 
-export const DEMO_SUBGENRES = [
-  'Melodic Death Metal',
-  'Progressive Metal',
-  'Progressive Death Metal',
-  'Gothic Metal',
-  'Doom Metal',
-  'Black Metal',
-  'Sludge Metal',
-  'Djent',
-  'Death Metal',
-  'Stoner Doom',
-] as const
+export interface LegacyAlbum {
+  id: string
+  bandId: string
+  title: string
+  year?: number
+}
 
-export const DEMO_BANDS: Band[] = [
+export const LEGACY_BANDS: readonly LegacyBand[] = [
   { id: 'gojira', name: 'Gojira', country: 'FR', formedYear: 1996, subgenres: ['Progressive Death Metal'], isCustom: false },
   { id: 'opeth', name: 'Opeth', country: 'SE', formedYear: 1990, subgenres: ['Progressive Metal', 'Progressive Death Metal'], isCustom: false },
   { id: 'moonspell', name: 'Moonspell', country: 'PT', formedYear: 1992, subgenres: ['Gothic Metal'], isCustom: false },
@@ -35,7 +33,7 @@ export const DEMO_BANDS: Band[] = [
   { id: 'death', name: 'Death', country: 'US', formedYear: 1984, subgenres: ['Death Metal', 'Progressive Death Metal'], isCustom: false },
 ]
 
-export const DEMO_ALBUMS: Album[] = [
+export const LEGACY_ALBUMS: readonly LegacyAlbum[] = [
   { id: 'gojira-from-mars-to-sirius', bandId: 'gojira', title: 'From Mars to Sirius', year: 2005 },
   { id: 'gojira-the-way-of-all-flesh', bandId: 'gojira', title: 'The Way of All Flesh', year: 2008 },
   { id: 'gojira-magma', bandId: 'gojira', title: 'Magma', year: 2016 },
@@ -55,19 +53,3 @@ export const DEMO_ALBUMS: Album[] = [
   { id: 'sleep-holy-mountain', bandId: 'sleep', title: 'Holy Mountain', year: 1992 },
   { id: 'death-symbolic', bandId: 'death', title: 'Symbolic', year: 1995 },
 ]
-
-const regionNamesByLocale = new Map<string, Intl.DisplayNames | null>()
-
-/** Nome do país no idioma ativo a partir do código ISO, com fallback para o próprio código. */
-export function countryName(code: string | undefined): string | undefined {
-  if (!code) return undefined
-  const locale = intlLocale()
-  if (!regionNamesByLocale.has(locale)) {
-    try {
-      regionNamesByLocale.set(locale, new Intl.DisplayNames([locale], { type: 'region' }))
-    } catch {
-      regionNamesByLocale.set(locale, null)
-    }
-  }
-  return regionNamesByLocale.get(locale)?.of(code) ?? code
-}

@@ -4,7 +4,8 @@ import type { Band } from '../../domain/band.ts'
 import { gearDisplayName, gearTypeLabel, type GearItem } from '../../domain/gear.ts'
 import type { Profile } from '../../domain/profile.ts'
 import { useI18n } from '../../i18n/context.ts'
-import { GenerativeArt } from '../art/GenerativeArt.tsx'
+import { AlbumCover } from '../art/AlbumCover.tsx'
+import { BandArt } from '../art/BandArt.tsx'
 import { GearImage } from '../rig/GearImage.tsx'
 import { Chip } from '../ui/Chip.tsx'
 import type { CardFace } from './ProfileCard.tsx'
@@ -14,13 +15,15 @@ interface IdentityFaceProps {
   profile: Profile
   topBand?: Band
   topAlbum?: Album
+  /** Banda do álbum favorito (pode não ser a banda n.º 1). */
+  topAlbumBand?: Band
   /** Peça em destaque: a primeira favorita ou, sem favoritas, a primeira da rig. */
   featuredGear?: GearItem
   onOpenFace: (face: CardFace) => void
 }
 
 /** Face "identity": bio, subgéneros e destaques que levam às outras faces. */
-export function IdentityFace({ profile, topBand, topAlbum, featuredGear, onOpenFace }: IdentityFaceProps) {
+export function IdentityFace({ profile, topBand, topAlbum, topAlbumBand, featuredGear, onOpenFace }: IdentityFaceProps) {
   const { t } = useI18n()
   const hasHighlights = topBand || topAlbum || featuredGear
 
@@ -48,9 +51,7 @@ export function IdentityFace({ profile, topBand, topAlbum, featuredGear, onOpenF
             {topBand && (
               <li>
                 <button type="button" className={styles.highlight} onClick={() => onOpenFace('music')}>
-                  <span className={styles.highlightArt}>
-                    <GenerativeArt seed={`band:${topBand.id}`} />
-                  </span>
+                  <BandArt band={topBand} size={120} className={styles.highlightArt} />
                   <span className={styles.highlightText}>
                     <span className={styles.highlightLabel}>{t('card.topBand')}</span>
                     <span className={styles.highlightName}>{topBand.name}</span>
@@ -62,12 +63,13 @@ export function IdentityFace({ profile, topBand, topAlbum, featuredGear, onOpenF
             {topAlbum && (
               <li>
                 <button type="button" className={styles.highlight} onClick={() => onOpenFace('music')}>
-                  <span className={styles.highlightArt}>
-                    <GenerativeArt seed={`album:${topAlbum.id}`} />
-                  </span>
+                  <AlbumCover album={topAlbum} className={styles.highlightArt} />
                   <span className={styles.highlightText}>
                     <span className={styles.highlightLabel}>{t('card.topAlbum')}</span>
                     <span className={styles.highlightName}>{topAlbum.title}</span>
+                    <span className={styles.highlightMeta}>
+                      {[topAlbumBand?.name, topAlbum.year].filter(Boolean).join(' · ')}
+                    </span>
                   </span>
                   <ArrowUpRight className={styles.highlightArrow} aria-hidden="true" />
                 </button>

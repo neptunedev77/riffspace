@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { DEMO_ALBUMS, DEMO_BANDS } from '../../data/demo-bands.ts'
 import { createDemoProfile } from '../../data/demo-profile.ts'
 import { makeProfile, storageWithProfile, storageWithRaw } from '../../tests/fixtures.ts'
 import {
@@ -13,7 +12,6 @@ import {
 import { BACKUP_KEY, createProfileRepository, STORAGE_KEY, type BackupRecord } from './repository.ts'
 import { createMemoryStorage, type KeyValueStorage } from './storage.ts'
 
-const catalog = { bands: DEMO_BANDS, albums: DEMO_ALBUMS }
 const fixedNow = () => new Date('2026-10-23T15:00:00.000Z')
 
 function envelope(overrides: Record<string, unknown> = {}) {
@@ -30,7 +28,7 @@ describe('serializeDocument / deserializeDocument', () => {
   it('ciclo completo preserva o perfil', () => {
     const profile = makeProfile({ theme: 'frozen-abyss', tagline: 'Gelo e riffs' })
     const raw = serializeDocument(profile, fixedNow())
-    const result = deserializeDocument(raw, { catalog })
+    const result = deserializeDocument(raw, {})
     expect(result).toEqual({
       status: 'ok',
       profile,
@@ -46,11 +44,11 @@ describe('serializeDocument / deserializeDocument', () => {
   })
 
   it.each([null, '', '   '])('trata %j como vazio', (raw) => {
-    expect(deserializeDocument(raw, { catalog })).toEqual({ status: 'empty' })
+    expect(deserializeDocument(raw, {})).toEqual({ status: 'empty' })
   })
 
   it.each(['{', 'undefined', '{"app":', 'NaN'])('JSON corrompido %j é inválido, sem lançar', (raw) => {
-    const result = deserializeDocument(raw, { catalog })
+    const result = deserializeDocument(raw, {})
     expect(result).toMatchObject({ status: 'invalid', reason: 'json' })
   })
 
@@ -63,12 +61,12 @@ describe('serializeDocument / deserializeDocument', () => {
     ['versão zero', envelope({ schemaVersion: 0 })],
     ['versão decimal', envelope({ schemaVersion: 1.5 })],
   ])('envelope inválido (%s)', (_, raw) => {
-    expect(deserializeDocument(raw, { catalog })).toMatchObject({ status: 'invalid', reason: 'envelope' })
+    expect(deserializeDocument(raw, {})).toMatchObject({ status: 'invalid', reason: 'envelope' })
   })
 
   it('versão futura é reportada como não suportada', () => {
     const raw = envelope({ schemaVersion: CURRENT_SCHEMA_VERSION + 1 })
-    expect(deserializeDocument(raw, { catalog })).toEqual({
+    expect(deserializeDocument(raw, {})).toEqual({
       status: 'unsupported-version',
       version: CURRENT_SCHEMA_VERSION + 1,
     })
@@ -76,7 +74,7 @@ describe('serializeDocument / deserializeDocument', () => {
 
   it('perfil que não cumpre o schema é inválido e lista os problemas', () => {
     const raw = envelope({ profile: { ...makeProfile(), nickname: 'x', theme: 'neon' } })
-    const result = deserializeDocument(raw, { catalog })
+    const result = deserializeDocument(raw, {})
     expect(result.status).toBe('invalid')
     if (result.status === 'invalid') {
       expect(result.reason).toBe('schema')
@@ -85,13 +83,55 @@ describe('serializeDocument / deserializeDocument', () => {
   })
 
   it('repara referências partidas em vez de rejeitar', () => {
-    const raw = envelope({ profile: makeProfile({ favoriteBandIds: ['gojira', 'banda-removida'] }) })
-    const result = deserializeDocument(raw, { catalog })
+    const base = makeProfile()
+    const orphan = { ...base.albums[0]!, id: 'orfao', bandId: 'banda-removida' }
+    const raw = envelope({ profile: { ...base, albums: [...base.albums, orphan] } })
+    const result = deserializeDocument(raw, {})
     expect(result.status).toBe('ok')
     if (result.status === 'ok') {
-      expect(result.profile.favoriteBandIds).toEqual(['gojira'])
+      expect(result.profile.albums).toEqual(base.albums)
       expect(result.repairs.length).toBe(1)
     }
+  })
+})
+
+describe('migração v2 → v3 (bandas e álbuns passam a viver no perfil)', () => {
+  function v2Document(profile: Record<string, unknown>) {
+    const { bands: _bands, albums: _albums, ...rest } = makeProfile()
+    return JSON.stringify({
+      app: APP_ID,
+      schemaVersion: 2,
+      savedAt: '2026-10-23T12:00:00.000Z',
+      profile: { ...rest, ...profile },
+    })
+  }
+
+  it('resolve IDs do antigo catálogo e entradas personalizadas, por ordem, como bandas custom', () => {
+    const raw = v2Document({
+      favoriteBandIds: ['opeth', 'a-minha-banda', 'banda-que-nao-existe', 'gojira'],
+      favoriteAlbumIds: ['opeth-blackwater-park', 'demo-tape', 'insomnium-winters-gate'],
+      customBands: [{ id: 'a-minha-banda', name: 'A Minha Banda', subgenres: [], isCustom: true }],
+      customAlbums: [{ id: 'demo-tape', bandId: 'a-minha-banda', title: 'Demo Tape' }],
+    })
+    const result = deserializeDocument(raw, {})
+    expect(result.status).toBe('ok')
+    if (result.status !== 'ok') return
+    expect(result.migratedFrom).toBe(2)
+    expect(result.profile.bands.map((band) => [band.id, band.name, band.source])).toEqual([
+      ['opeth', 'Opeth', 'custom'],
+      ['a-minha-banda', 'A Minha Banda', 'custom'],
+      ['gojira', 'Gojira', 'custom'],
+    ])
+    expect(result.profile.bands[0]).toMatchObject({ country: 'SE', formedYear: 1990 })
+    // O álbum dos Insomnium cai: a banda não estava nas favoritas.
+    expect(result.profile.albums.map((album) => album.title)).toEqual(['Blackwater Park', 'Demo Tape'])
+    expect(result.profile).not.toHaveProperty('favoriteBandIds')
+    expect(result.profile).not.toHaveProperty('customBands')
+  })
+
+  it('um documento v2 sem bandas fica com listas vazias', () => {
+    const result = deserializeDocument(v2Document({ favoriteBandIds: [], favoriteAlbumIds: [], customBands: [], customAlbums: [] }), {})
+    expect(result).toMatchObject({ status: 'ok', profile: { bands: [], albums: [] } })
   })
 })
 
@@ -118,7 +158,7 @@ describe('migrações', () => {
   }
 
   it('aplica migrações em sequência até à versão atual', () => {
-    const result = deserializeDocument(legacyV1(), { catalog, currentVersion: 3, migrations })
+    const result = deserializeDocument(legacyV1(), { currentVersion: 3, migrations })
     expect(result.status).toBe('ok')
     if (result.status === 'ok') {
       expect(result.migratedFrom).toBe(1)
@@ -128,7 +168,7 @@ describe('migrações', () => {
   })
 
   it('falha de forma controlada quando falta uma migração', () => {
-    const result = deserializeDocument(legacyV1(), { catalog, currentVersion: 3, migrations: { 1: migrations[1]! } })
+    const result = deserializeDocument(legacyV1(), { currentVersion: 3, migrations: { 1: migrations[1]! } })
     expect(result).toMatchObject({ status: 'invalid', reason: 'migration' })
   })
 
@@ -143,7 +183,7 @@ describe('migrações', () => {
 })
 
 describe('createProfileRepository', () => {
-  const options = { catalog, fallback: createDemoProfile, now: fixedNow }
+  const options = { fallback: createDemoProfile, now: fixedNow }
 
   it('sem dados devolve o fallback sem aviso', () => {
     const result = createProfileRepository(createMemoryStorage(), options).load()
@@ -188,9 +228,10 @@ describe('createProfileRepository', () => {
   })
 
   it('perfil reparado: carrega e avisa com as reparações', () => {
-    const storage = storageWithProfile(makeProfile({ favoriteBandIds: ['opeth', 'opeth'] }))
+    const opeth = makeProfile().bands[1]!
+    const storage = storageWithProfile(makeProfile({ bands: [opeth, opeth], albums: [] }))
     const result = createProfileRepository(storage, options).load()
-    expect(result.profile.favoriteBandIds).toEqual(['opeth'])
+    expect(result.profile.bands).toEqual([opeth])
     expect(result.notice?.kind).toBe('repaired')
   })
 

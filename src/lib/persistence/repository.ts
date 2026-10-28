@@ -1,5 +1,4 @@
 import type { Profile } from '../../domain/profile.ts'
-import type { Catalog } from '../validation/normalize.ts'
 import { deserializeDocument, serializeDocument, type DocumentOptions } from './document.ts'
 import type { KeyValueStorage } from './storage.ts'
 
@@ -30,8 +29,7 @@ export interface BackupRecord {
   raw: string
 }
 
-export interface RepositoryOptions extends Omit<DocumentOptions, 'catalog'> {
-  catalog: Catalog
+export interface RepositoryOptions extends DocumentOptions {
   /** Perfil usado quando não há dados válidos. Chamado de cada vez para devolver uma cópia nova. */
   fallback: () => Profile
   now?: () => Date

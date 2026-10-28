@@ -8,7 +8,7 @@ describe('idioma', () => {
   it('a interface começa em inglês', () => {
     renderApp()
     expect(document.documentElement.lang).toBe('en')
-    expect(screen.getByRole('link', { name: 'edit profile' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'customise' })).toBeInTheDocument()
   })
 
   it('mudar para português aplica-se logo, sem guardar o perfil, e persiste após um refresh', () => {
@@ -27,7 +27,7 @@ describe('idioma', () => {
 
     cleanup()
     renderApp(storage)
-    expect(screen.getByRole('link', { name: 'editar perfil' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'personalizar' })).toBeInTheDocument()
     expect(within(screen.getByRole('article')).getByRole('tab', { name: 'identidade' })).toBeInTheDocument()
   })
 

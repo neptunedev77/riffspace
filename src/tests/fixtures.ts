@@ -31,3 +31,31 @@ export const ITUNES_SONG = {
   trackViewUrl: 'https://music.apple.com/us/album/flying-whales/213374112?i=213374170',
   trackTimeMillis: 464453,
 }
+
+/** Artista como a pesquisa da MusicBrainz o devolve (resumido). */
+export const MB_ARTIST = {
+  id: '9e0d2a13-6e59-4f60-8b16-2b3c5d6e7f80',
+  type: 'Group',
+  score: 100,
+  name: 'Sepultura',
+  country: 'BR',
+  disambiguation: 'Brazilian metal band',
+  'life-span': { begin: '1984', ended: null },
+  tags: [
+    { count: 2, name: 'death metal' },
+    { count: 7, name: 'thrash metal' },
+    { count: 4, name: 'groove metal' },
+    { count: 3, name: 'brazilian' },
+  ],
+}
+
+/** Release groups de um artista na MusicBrainz: um álbum, um ao vivo, um single e outro álbum. */
+export const MB_RELEASE_GROUPS = {
+  'release-group-count': 4,
+  'release-groups': [
+    { id: 'a1a1a1a1-0000-4000-8000-000000000001', title: 'Arise', 'primary-type': 'Album', 'secondary-types': [], 'first-release-date': '1991-03-25' },
+    { id: 'a1a1a1a1-0000-4000-8000-000000000002', title: 'Under a Pale Grey Sky', 'primary-type': 'Album', 'secondary-types': ['Live'], 'first-release-date': '2002' },
+    { id: 'a1a1a1a1-0000-4000-8000-000000000003', title: 'Refuse/Resist', 'primary-type': 'Single', 'secondary-types': [], 'first-release-date': '1994' },
+    { id: 'a1a1a1a1-0000-4000-8000-000000000004', title: 'Schizophrenia', 'primary-type': 'Album', 'secondary-types': [], 'first-release-date': '1987-10-30' },
+  ],
+}
